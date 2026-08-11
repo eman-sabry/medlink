@@ -12,7 +12,6 @@ import {
 import { ChartCard } from "./ChartCard";
 import { CHART_AXIS_COLOR, CHART_COLORS, CHART_GRID_COLOR, CHART_TOOLTIP_STYLE } from "./chartColors";
 
-// مخطط مركّب (أعمدة + خط) لعرض مقياسين مختلفين معاً، مثل عدد الجلسات (أعمدة) مقابل ساعات العمل (خط)
 export function ComposedChartCard({
   title,
   subtitle,

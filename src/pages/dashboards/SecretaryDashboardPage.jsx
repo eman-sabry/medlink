@@ -4,11 +4,9 @@ import {
   CalendarClock,
   Clock,
   ListChecks,
-  Plus,
   UserPlus,
   TrendingUp,
   ActivitySquare,
-  BarChart3,
   LayoutDashboard,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
@@ -19,12 +17,14 @@ import { AreaChartCard } from "../../components/charts/AreaChartCard";
 import { LineChartCard } from "../../components/charts/LineChartCard";
 import { AppointmentListPanel } from "../../components/dashboard/AppointmentListPanel";
 import { DoctorScheduleList } from "../../components/dashboard/DoctorScheduleList";
-import { PatientSearchWidget } from "../../components/dashboard/PatientSearchWidget";
 import { NewPatientsList } from "../../components/dashboard/NewPatientsList";
 import { QuickActionsPanel } from "../../components/dashboard/QuickActionsPanel";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
 import { AppointmentModal } from "../../components/AppointmentModal";
-import { buildSecretaryKpiCards } from "../../helpers/secretaryDashboard.helpers";
+import {
+  buildSecretaryKpiCards,
+  buildOwnerQuickActions,
+} from "../../helpers/secretaryDashboard.helpers";
 
 export default function SecretaryDashboardPage() {
   const { user } = useAuth();
@@ -47,6 +47,10 @@ export default function SecretaryDashboardPage() {
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto" dir="rtl">
+      <QuickActionsPanel
+        title="إجراءات سريعة"
+        actions={buildOwnerQuickActions()}
+      />
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -70,20 +74,16 @@ export default function SecretaryDashboardPage() {
       </motion.div>
 
       <section className="space-y-4">
-        <SectionHeader eyebrow="Today" title="نظرة عامة على اليوم" icon={ActivitySquare} color="purple" />
+        <SectionHeader
+          title="نظرة عامة على اليوم"
+          icon={ActivitySquare}
+          color="purple"
+        />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {kpiCards.map((card) => (
-            <KpiCard key={card.key} {...card} isLoading={isLoading} />
+          {kpiCards.map(({ key, ...cardProps }) => (
+            <KpiCard key={key} {...cardProps} isLoading={isLoading} />
           ))}
         </div>
-
-        <QuickActionsPanel
-          title="إجراءات سريعة"
-          actions={[
-            { label: "حجز موعد جديد", icon: Plus, onClick: () => setIsBookingOpen(true), color: "purple" },
-            { label: "إضافة مريض", icon: UserPlus, to: "/patients", color: "blue" },
-          ]}
-        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <AppointmentListPanel
@@ -103,11 +103,22 @@ export default function SecretaryDashboardPage() {
       </section>
 
       <section className="space-y-4">
-        <SectionHeader eyebrow="Trends" title="الاتجاهات" icon={TrendingUp} color="cyan" />
+        <DoctorScheduleList doctors={doctorSchedule} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AppointmentListPanel
+            title="أحدث الحجوزات"
+            icon={ListChecks}
+            appointments={recentBookings}
+            emptyMessage="لا توجد حجوزات حديثة"
+          />
+          <NewPatientsList patients={newPatients} />
+        </div>
+      </section>
+
+      <section className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <AreaChartCard
             title="المواعيد حسب يوم الأسبوع"
-            subtitle="Daily Appointments"
             icon={CalendarClock}
             color="purple"
             isLoading={isLoading}
@@ -117,7 +128,6 @@ export default function SecretaryDashboardPage() {
           />
           <LineChartCard
             title="نمو المرضى الجدد شهرياً"
-            subtitle="New Patients Trend"
             icon={TrendingUp}
             color="emerald"
             isLoading={isLoading}
@@ -129,7 +139,6 @@ export default function SecretaryDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <BarChartCard
             title="أوقات الانتظار حسب يوم الأسبوع"
-            subtitle="Waiting Time"
             icon={Clock}
             color="amber"
             isLoading={isLoading}
@@ -139,7 +148,6 @@ export default function SecretaryDashboardPage() {
           />
           <BarChartCard
             title="المرضى الجدد حسب يوم الأسبوع"
-            subtitle="Weekly Patients"
             icon={UserPlus}
             color="blue"
             isLoading={isLoading}
@@ -151,11 +159,9 @@ export default function SecretaryDashboardPage() {
       </section>
 
       <section className="space-y-4">
-        <SectionHeader eyebrow="Breakdown" title="تحليلات المرضى والمواعيد" icon={BarChart3} color="indigo" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <BarChartCard
             title="حالة المواعيد"
-            subtitle="Appointment Status"
             icon={ListChecks}
             color="rose"
             isLoading={isLoading}
@@ -166,7 +172,6 @@ export default function SecretaryDashboardPage() {
           />
           <BarChartCard
             title="حالة المرضى"
-            subtitle="Active vs Inactive"
             icon={ListChecks}
             color="teal"
             isLoading={isLoading}
@@ -178,29 +183,13 @@ export default function SecretaryDashboardPage() {
         </div>
       </section>
 
-      <section className="space-y-4">
-        <SectionHeader eyebrow="Directory" title="الجدول والبحث" icon={ListChecks} color="teal" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <DoctorScheduleList doctors={doctorSchedule} />
-          <PatientSearchWidget patients={patients} />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <AppointmentListPanel
-            title="أحدث الحجوزات"
-            icon={ListChecks}
-            appointments={recentBookings}
-            emptyMessage="لا توجد حجوزات حديثة"
-          />
-          <NewPatientsList patients={newPatients} />
-        </div>
-      </section>
-
       <AppointmentModal
         isOpen={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}
         onSave={async (data) => {
-          await addAppointment(data);
+          const saved = await addAppointment(data);
           setIsBookingOpen(false);
+          return saved;
         }}
         appointmentToEdit={null}
         patients={patients}

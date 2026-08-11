@@ -4,9 +4,11 @@ import { MaintenanceTable } from "../components/MaintenanceTable";
 import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { ReusableForm } from "../components/ui/ReusableForm";
 import { SearchBar } from "../components/ui/SearchBar";
+import { StatusFilterDropdown } from "../components/ui/StatusFilterDropdown";
 import { LoadingState } from "../components/ui/LoadingState";
 import { StatsGrid } from "../components/ui/StatCard";
 import { MAINTENANCE_FORM_FIELDS } from "../helpers/maintenance.helpers";
+import { MAINTENANCE_STATUS_FILTER_OPTIONS } from "../helpers/statusFilters";
 import { countBy, sumBy } from "../utils/stats";
 import { Wrench, CheckCircle2, Clock, Plus, DollarSign } from "lucide-react";
 
@@ -21,23 +23,20 @@ export default function MaintenancePage() {
   } = useMaintenance();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  // حالات للتحكم في المودال والفورم (إضافة أو تعديل)
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
 
-  // حالات مودال التأكيد بالحذف
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // فتح مودال الإضافة
   const handleOpenAdd = () => {
     setEditingEntry(null);
     setIsFormModalOpen(true);
   };
 
-  // فتح مودال التعديل مع تمرير بيانات السجل الحالي
   const handleOpenEdit = (entry) => {
     setEditingEntry(entry);
     setIsFormModalOpen(true);
@@ -60,7 +59,6 @@ export default function MaintenancePage() {
     }
   };
 
-  // دالة الحفظ الموحدة (للإضافة أو التعديل)
   const handleFormSubmit = async (formData) => {
     if (editingEntry) {
       await handleUpdateMaintenance({
@@ -72,15 +70,16 @@ export default function MaintenancePage() {
     }
   };
 
-  // تصفية السجلات حسب البحث
   const filteredEntries = useMemo(
     () =>
-      maintenanceEntries.filter(
-        (item) =>
+      maintenanceEntries.filter((item) => {
+        const matchesSearch =
           item.reason?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.device_id?.toLowerCase().includes(searchQuery.toLowerCase()),
-      ),
-    [maintenanceEntries, searchQuery],
+          item.device_id?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [maintenanceEntries, searchQuery, statusFilter],
   );
 
   const statsItems = useMemo(() => {
@@ -126,7 +125,6 @@ export default function MaintenancePage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto" dir="rtl">
-      {/* عنوان الصفحة */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <span className="text-xs text-muted-foreground font-bold">
@@ -149,19 +147,23 @@ export default function MaintenancePage() {
         </button>
       </div>
 
-      {/* لوحة الإحصائيات السريعة */}
       <StatsGrid items={statsItems} />
 
-      {/* شريط البحث والفلترة */}
-      <div className="flex flex-col md:flex-row items-center gap-3 bg-card p-4 rounded-2xl border border-border">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 bg-card p-4 rounded-2xl border border-border">
         <SearchBar
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder="بحث بسبب الصيانة أو معرف الجهاز..."
+          className="flex-1"
+        />
+        <StatusFilterDropdown
+          options={MAINTENANCE_STATUS_FILTER_OPTIONS}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          triggerClassName="w-full md:w-44 h-12 px-4 text-xs"
         />
       </div>
 
-      {/* جدول البيانات أو حالة التحميل */}
       {isLoading ? (
         <LoadingState message="جاري تحميل سجلات الصيانة..." />
       ) : (
@@ -173,7 +175,6 @@ export default function MaintenancePage() {
         />
       )}
 
-      {/* مودال الفورم الموحد (إضافة وتعديل) */}
       {isFormModalOpen && (
         <ReusableForm
           title={editingEntry ? "تعديل سجل الصيانة" : "إضافة سجل صيانة جديد"}
@@ -192,7 +193,6 @@ export default function MaintenancePage() {
         />
       )}
 
-      {/* نافذة التأكيد بالحذف */}
       <ConfirmModal
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}

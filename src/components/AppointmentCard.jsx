@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { PermissionGuard } from "../guards/PermissionGuard";
 
+
 export const AppointmentCard = memo(function AppointmentCard({
   app,
   onUpdateStatus,
@@ -24,66 +25,67 @@ export const AppointmentCard = memo(function AppointmentCard({
 }) {
   const isCompleted = app.status === "Completed";
 
- const getStatusBadge = (status) => {
-   switch (status) {
-     case "Completed":
-       return (
-         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-           <CheckCircle2 className="h-3.5 w-3.5" />
-           مكتمل
-         </span>
-       );
-     case "InSession":
-       return (
-         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
-           <Activity className="h-3.5 w-3.5" />
-           قيد الجلسة
-         </span>
-       );
-     case "Arrived":
-       return (
-         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-           <UserCheck className="h-3.5 w-3.5" />
-           تم تسجيل الوصول
-         </span>
-       );
-     case "Waiting":
-       return (
-         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-           <Clock className="h-3.5 w-3.5" />
-           في الانتظار
-         </span>
-       );
-     case "NoShow":
-       return (
-         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-           <UserX className="h-3.5 w-3.5" />
-           لم يحضر
-         </span>
-       );
-     case "Scheduled":
-       return (
-         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-           <Calendar className="h-3.5 w-3.5" />
-           مجدول
-         </span>
-       );
-     case "Cancelled":
-       return (
-         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-destructive/10 text-destructive border border-destructive/20">
-           <XCircle className="h-3.5 w-3.5" />
-           ملغي
-         </span>
-       );
-     default:
-       return (
-         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
-           <Clock className="h-3.5 w-3.5" />
-           مجدول
-         </span>
-       );
-   }
- };
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "Completed":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            مكتمل
+          </span>
+        );
+      case "InSession":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+            <Activity className="h-3.5 w-3.5" />
+            قيد الجلسة
+          </span>
+        );
+      case "Arrived":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            <UserCheck className="h-3.5 w-3.5" />
+            تم تسجيل الوصول
+          </span>
+        );
+      case "Waiting":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <Clock className="h-3.5 w-3.5" />
+            في الانتظار
+          </span>
+        );
+      case "NoShow":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+            <UserX className="h-3.5 w-3.5" />
+            لم يحضر
+          </span>
+        );
+      case "Scheduled":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+            <Calendar className="h-3.5 w-3.5" />
+            مجدول
+          </span>
+        );
+      case "Cancelled":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-destructive/10 text-destructive border border-destructive/20">
+            <XCircle className="h-3.5 w-3.5" />
+            ملغي
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+            <Clock className="h-3.5 w-3.5" />
+            مجدول
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="rounded-3xl border border-border bg-card p-5 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 flex flex-col gap-4 group">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -102,6 +104,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               </h3>
               {getStatusBadge(app.status)}
             </div>
+
             <p className="text-xs text-muted-foreground font-medium flex items-center gap-2 flex-wrap">
               <span className="text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-lg border border-primary/10">
                 {app.service_name || app.service_id || "جلسة علاج"}
@@ -111,9 +114,14 @@ export const AppointmentCard = memo(function AppointmentCard({
                 {app.doctor_name || app.doctor_id || "الطبيب المعالج"}
               </span>
               <span className="text-border">•</span>
+              <span className="flex items-center gap-1 text-foreground font-semibold">
+                <Calendar className="h-3 w-3 text-primary" />
+                {formatDate(app.starts_at)}
+              </span>
+              <span className="text-border">•</span>
               <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {formatDate(app.created_at)}
+                <Clock className="h-3 w-3" />
+                {formatTime(app.starts_at)}
               </span>
             </p>
           </div>
@@ -134,34 +142,6 @@ export const AppointmentCard = memo(function AppointmentCard({
         >
           <UserCheck className="h-3.5 w-3.5" />
           <span>وصول</span>
-        </button>
-
-        <button
-          type="button"
-          disabled={isCompleted}
-          onClick={() => onUpdateStatus(app, "InSession")}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-            isCompleted
-              ? "bg-muted/40 text-muted-foreground/30 cursor-not-allowed"
-              : "bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/25 cursor-pointer"
-          }`}
-        >
-          <Activity className="h-3.5 w-3.5" />
-          <span>قيد الجلسة</span>
-        </button>
-
-        <button
-          type="button"
-          disabled={isCompleted}
-          onClick={() => onUpdateStatus(app, "Completed")}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-            isCompleted
-              ? "bg-emerald-500/15 text-emerald-700 cursor-default"
-              : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/25 cursor-pointer"
-          }`}
-        >
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          <span>{isCompleted ? "مكتمل" : "إكمال"}</span>
         </button>
 
         <button

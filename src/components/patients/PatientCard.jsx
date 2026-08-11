@@ -2,7 +2,6 @@ import { memo, useState } from "react";
 import {
   User,
   Calendar,
-  CreditCard,
   Edit,
   Trash2,
   Shield,
@@ -12,7 +11,7 @@ import {
   Clock,
   UserPlus,
 } from "lucide-react";
-import { DeletePatientModal } from "./DeletePatientModal"; // استيراد مكون الحذف المستقل
+import { DeletePatientModal } from "./DeletePatientModal"; 
 import { PermissionGuard } from "../../guards/PermissionGuard";
 
 function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
@@ -42,7 +41,6 @@ function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
   return (
     <>
       <div className="group rounded-3xl border border-border bg-card p-5 shadow-sm hover:shadow-md transition-all space-y-4">
-        {/* رأس الكرت */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold">
@@ -65,7 +63,6 @@ function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
             </div>
           </div>
 
-          {/* أزرار التعديل والحذف */}
           <div className="flex items-center gap-1.5">
             <PermissionGuard permission="patients:edit">
               <button
@@ -90,7 +87,6 @@ function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
           </div>
         </div>
 
-        {/* تفاصيل البيانات */}
         <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border text-xs">
           <div className="flex items-center gap-2 text-muted-foreground font-medium">
             <Shield className="h-4 w-4 text-primary shrink-0" />
@@ -101,8 +97,8 @@ function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
             <span>{patient.date_of_birth}</span>
           </div>
           <div className="col-span-2 flex items-center gap-2 text-muted-foreground font-medium">
-            <CreditCard className="h-4 w-4 text-primary shrink-0" />
-            <span className="truncate">القومي: {patient.national_id}</span>
+            <Phone className="h-4 w-4 text-primary shrink-0" />
+            <span className="truncate" dir="ltr">{patient.phone || "—"}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground font-medium">
             <UserPlus className="h-4 w-4 text-primary shrink-0" />
@@ -114,9 +110,7 @@ function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
           </div>
         </div>
 
-        {/* شريط الأزرار السريعة (اتصال، واتساب، ملف المريض) */}
         <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
-          {/* زر الاتصال */}
           <a
             href={`tel:${phoneNo}`}
             className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-muted/60 text-foreground hover:bg-primary/10 hover:text-primary text-xs font-bold transition-all"
@@ -126,7 +120,6 @@ function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
             <span>اتصال</span>
           </a>
 
-          {/* زر واتساب */}
           <a
             href={whatsappUrl}
             target="_blank"
@@ -138,7 +131,6 @@ function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
             <span>واتساب</span>
           </a>
 
-          {/* زر الانتقال لصفحة الملف الشخصي للمريض */}
           <button
             type="button"
             onClick={() => onViewDetails(patient.id)}
@@ -151,7 +143,6 @@ function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
         </div>
       </div>
 
-      {/* نافذة التأكيد من الحذف المستقلة */}
       <DeletePatientModal
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}

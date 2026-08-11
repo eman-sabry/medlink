@@ -1,7 +1,12 @@
+import { memo } from "react";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 
-// مخطط صغير جداً بلا محاور أو تلميحات، يُستخدم داخل بطاقات المؤشرات لإظهار الاتجاه بسرعة
-export function Sparkline({ data = [], dataKey = "count", color = "var(--primary)", height = 36 }) {
+export const Sparkline = memo(function Sparkline({
+  data = [],
+  dataKey = "count",
+  color = "var(--primary)",
+  height = 36,
+}) {
   if (!data || data.length < 2) return null;
 
   const gradientId = `spark-${dataKey}-${color.replace(/[^a-zA-Z0-9]/g, "")}`;
@@ -29,4 +34,4 @@ export function Sparkline({ data = [], dataKey = "count", color = "var(--primary
       </ResponsiveContainer>
     </div>
   );
-}
+});

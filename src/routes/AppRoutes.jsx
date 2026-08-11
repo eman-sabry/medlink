@@ -12,6 +12,9 @@ import DoctorDashboardPage from "../pages/dashboards/DoctorDashboardPage";
 import CenterPulsePage from "../pages/dashboards/CenterPulsePage";
 
 import PatientsPage from "../pages/PatientsPage";
+import PatientDetailsPage from "../pages/PatientDetailsPage";
+import InvoicesPage from "../pages/InvoicesPage";
+import ExpensesPage from "../pages/ExpensesPage";
 import AppointmentsPage from "../pages/AppointmentsPage";
 import DoctorSessionDetailsRoute from "../pages/DoctorSessionDetailsRoute";
 import DoctorSessionsPage from "../pages/DoctorSessionsPage";
@@ -20,9 +23,9 @@ import PatientFollowUpPage from "../pages/PatientFollowUpPage";
 import MaintenancePage from "../pages/MaintenancePage";
 import PackageTemplatesPage from "../pages/PackageTemplatesPage";
 import ServicesPage from "../pages/ServicesPage";
- import RoomsPage from "../pages/RoomsPage"; // الصفحة جاهزة، لكن المسار غير مفعل بعد
+import RoomsPage from "../pages/RoomsPage";
+import TeamPage from "../pages/TeamPage";
 
-// كل مسار محمي يُلَف تلقائياً بـ ProtectedRoute مع الأدوار المسموح بها من ROUTE_PERMISSIONS
 function protect(path, element) {
   return <ProtectedRoute roles={ROUTE_PERMISSIONS[path]}>{element}</ProtectedRoute>;
 }
@@ -45,15 +48,19 @@ export default function AppRoutes() {
 
       <Route path="/profile" element={protect("/profile", <ProfilePage />)} />
       <Route path="/patients" element={protect("/patients", <PatientsPage />)} />
+      <Route path="/patients/:id" element={protect("/patients/:id", <PatientDetailsPage />)} />
       <Route path="/appointments" element={protect("/appointments", <AppointmentsPage />)} />
       <Route path="/sessions" element={protect("/sessions", <DoctorSessionsPage />)} />
-      <Route path="/sessions/:id" element={protect("/sessions", <DoctorSessionDetailsRoute />)} />
+      <Route path="/sessions/:id" element={protect("/sessions/:id", <DoctorSessionDetailsRoute />)} />
       <Route path="/devices" element={protect("/devices", <MedicalDevicesPage />)} />
       <Route path="/followup" element={protect("/followup", <PatientFollowUpPage />)} />
       <Route path="/maintenance" element={protect("/maintenance", <MaintenancePage />)} />
       <Route path="/packages" element={protect("/packages", <PackageTemplatesPage />)} />
       <Route path="/services" element={protect("/services", <ServicesPage />)} />
-       <Route path="/rooms" element={protect("/rooms", <RoomsPage />)} /> 
+      <Route path="/invoices" element={protect("/invoices", <InvoicesPage />)} />
+      <Route path="/expenses" element={protect("/expenses", <ExpensesPage />)} />
+      <Route path="/rooms" element={protect("/rooms", <RoomsPage />)} />
+      <Route path="/team" element={protect("/team", <TeamPage />)} />
 
       <Route
         path="*"

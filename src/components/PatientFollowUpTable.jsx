@@ -7,7 +7,6 @@ export function PatientFollowUpTable({ patients, onUpdateStatus }) {
   const [tempNotes, setTempNotes] = useState("");
   const [dropdownId, setDropdownId] = useState(null);
 
-  // ألوان شارات حالات المتابعة المختلفة
   const getFollowUpStatusColor = (status) => {
     switch (status) {
       case "بحاجة اتصال":
@@ -76,7 +75,7 @@ export function PatientFollowUpTable({ patients, onUpdateStatus }) {
                 onUpdateStatus({
                   followUpId: patient.id,
                   status: patient.status,
-                  followUpStatus: patient.followUpStatus, // الحفاظ على الحالة الحالية وعدم تصفيرها
+                  followUpStatus: patient.followUpStatus, 
                   notes: tempNotes.trim() === "" ? "—" : tempNotes,
                 });
               }}
@@ -134,7 +133,6 @@ export function PatientFollowUpTable({ patients, onUpdateStatus }) {
 
             {isOpen && (
               <>
-                {/* طبقة شفافة لإغلاق القائمة عند النقر خارجها */}
                 <div
                   className="fixed inset-0 z-20"
                   onClick={() => setDropdownId(null)}

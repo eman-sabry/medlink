@@ -1,4 +1,12 @@
-import { CalendarClock, Clock, Users, Stethoscope, Plus, UserPlus } from "lucide-react";
+import {
+  CalendarClock,
+  Clock,
+  Users,
+  Stethoscope,
+  Plus,
+  UserPlus,
+FileText
+} from "lucide-react";
 import { trendFromMonthlySeries } from "../utils/dashboardStats";
 
 export function buildSecretaryKpiCards(stats, charts) {
@@ -45,5 +53,26 @@ export function buildSecretaryQuickActions({ onQuickBooking }) {
   return [
     { label: "حجز موعد جديد", icon: Plus, onClick: onQuickBooking, color: "purple" },
     { label: "إضافة مريض", icon: UserPlus, to: "/patients", color: "blue" },
+  ];
+}
+export function buildOwnerQuickActions() {
+  return [{
+      label: "إضافة مريض",
+      icon: UserPlus,
+      to: "/patients",
+      color: "blue"
+    },
+    {
+      label: "حجز موعد",
+      icon: Plus,
+      to: "/appointments",
+      color: "purple"
+    },
+    {
+      label: "إنشاء فاتورة",
+      icon: FileText,
+      to: "/invoices",
+      color: "rose",
+    },
   ];
 }

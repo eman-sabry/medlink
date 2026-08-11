@@ -1,17 +1,28 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import { Sidebar } from "../components/Sidebar";
+import { FloatingQuickActions } from "../components/dashboard/FloatingQuickActions";
 import { Menu, X, ChevronRight, ChevronLeft } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { toast } from "../utils/toast";
-
+import { getFloatingActionsByRole } from "../helpers/floatingActions.helpers";
 export default function AppLayout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const scrollContainerRef = useRef(null);
+const userRole = user?.role ? user.role.toLowerCase() : "user";
+const floatingActions = getFloatingActionsByRole(userRole);
+
+  // The content area (not window) is the actual scroll container, so reset it here once for
+  // every route instead of adding scroll-to-top logic to each page.
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo(0, 0);
+  }, [pathname]);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -24,24 +35,23 @@ export default function AppLayout({ children }) {
     navigate("/login", { replace: true });
   };
 
+
   return (
     <div
       className={
         isDarkMode
-          ? "dark h-screen w-full bg-background text-foreground transition-colors flex overflow-hidden font-['Cairo',sans-serif] antialiased"
-          : "h-screen w-full bg-background text-foreground transition-colors flex overflow-hidden font-['Cairo',sans-serif] antialiased"
+          ? "dark h-screen w-full bg-background text-foreground transition-colors flex overflow-hidden font-['Cairo',sans-serif] antialiased print:h-auto print:overflow-visible print:block"
+          : "h-screen w-full bg-background text-foreground transition-colors flex overflow-hidden font-['Cairo',sans-serif] antialiased print:h-auto print:overflow-visible print:block"
       }
     >
-      {/* الشريط الجانبي للشاشات الكبيرة (يأخذ الارتفاع الكامل ولا تتحرك للأعظم) */}
       <aside
-        className={`hidden lg:flex flex-col shrink-0 h-full transition-all duration-300 ease-in-out z-30 border-l border-border/40 shadow-2xl ${
+        className={`hidden lg:flex flex-col shrink-0 h-full transition-all duration-300 ease-in-out z-30 border-l border-border/40 shadow-2xl print:hidden ${
           isSidebarCollapsed ? "w-20" : "w-68"
         }`}
       >
         <Sidebar collapsed={isSidebarCollapsed} />
       </aside>
 
-      {/* نافذة الموبايل الجانبية (Mobile Drawer) */}
       {isMobileSidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
@@ -64,9 +74,11 @@ export default function AppLayout({ children }) {
         </div>
       )}
 
-      {/* قسم المحتوى الرئيسي والنافذة العلوية مع تفعيل السكرول الداخلي هنا فقط */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto bg-background">
-        <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60 shadow-xs shrink-0">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto bg-background print:h-auto print:overflow-visible print:block relative"
+      >
+        <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-border/60 shadow-xs shrink-0 print:hidden">
           <div className="flex items-center justify-between px-4 lg:px-6 h-20">
             <div className="flex items-center gap-1">
               <button
@@ -102,7 +114,9 @@ export default function AppLayout({ children }) {
 
             <div className="flex-1 max-w-full">
               <Navbar
-                onOpenSearch={() => toast.info("سيتم إضافة البحث السريع قريباً")}
+                onOpenSearch={() =>
+                  toast.info("سيتم إضافة البحث السريع قريباً")
+                }
                 onToggleDarkMode={toggleDarkMode}
                 isDarkMode={isDarkMode}
                 onLogout={handleLogout}
@@ -117,9 +131,11 @@ export default function AppLayout({ children }) {
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-8 lg:p-10 max-w-[1600px] w-full mx-auto">
+        <main className="flex-1 p-4 md:p-8 lg:p-10 max-w-[1600px] w-full mx-auto print:p-0 print:max-w-none">
           {children}
         </main>
+
+        <FloatingQuickActions actions={floatingActions} />
       </div>
     </div>
   );

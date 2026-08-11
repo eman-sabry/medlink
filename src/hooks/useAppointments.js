@@ -15,13 +15,17 @@ import {
 import {
     toast
 } from "../utils/toast";
+import { releaseBedAndRoom } from "./useRooms";
+import { logActivity, ACTIVITY_ACTIONS } from "../helpers/activityLog.helpers";
+import { isStaffAvailableForAssignment } from "../helpers/team.helpers";
+import { useAuth } from "./useAuth";
 
 const EMPTY_ARRAY = [];
 
 export function useAppointments() {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
 
-    // جلب المواعيد
     const appointmentsQuery = useQuery({
         queryKey: ["appointments"],
         queryFn: () => apiRequest("/appointments"),
@@ -32,7 +36,6 @@ export function useAppointments() {
         refetchOnMount: false,
     });
 
-    // جلب قائمة المرضى
     const patientsQuery = useQuery({
         queryKey: ["patients"],
         queryFn: () => apiRequest("/patients"),
@@ -40,10 +43,9 @@ export function useAppointments() {
         refetchOnWindowFocus: false,
     });
 
-    // جلب قائمة الطاقم الطبي/الموظفين (Staff)
     const staffQuery = useQuery({
         queryKey: ["staff"],
-        queryFn: () => apiRequest("/staff"), // أو المسار الصحيح لجلب الـ staff لديك
+        queryFn: () => apiRequest("/staff"), 
         staleTime: 1000 * 60 * 10,
         refetchOnWindowFocus: false,
     });
@@ -54,7 +56,13 @@ export function useAppointments() {
         refetchOnWindowFocus: false,
     });
 
-    // إضافة موعد جديد
+    const usersQuery = useQuery({
+        queryKey: ["users"],
+        queryFn: () => apiRequest("/users"),
+        staleTime: 1000 * 60 * 10,
+        refetchOnWindowFocus: false,
+    });
+
     const addMutation = useMutation({
         mutationFn: (newAppointment) =>
             apiRequest("/appointments", {
@@ -71,21 +79,51 @@ export function useAppointments() {
         onError: () => toast.error("فشل حجز الموعد"),
     });
 
-    // تعديل موعد
     const updateMutation = useMutation({
-        mutationFn: ({
-                id,
-                data
-            }) =>
-            apiRequest(`/appointments/${id}`, {
+        mutationFn: async ({
+            id,
+            data
+        }) => {
+            const result = await apiRequest(`/appointments/${id}`, {
                 method: "PUT",
                 body: JSON.stringify(data),
-            }),
+            });
+
+            if (data?.status === "Cancelled") {
+                const sessions = await apiRequest(`/treatment_sessions?appointment_id=${id}`);
+                const session = sessions[0];
+                if (session && session.status !== "Completed" && session.status !== "Cancelled") {
+                    const now = new Date().toISOString();
+                    await apiRequest(`/treatment_sessions/${session.id}`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ status: "Cancelled", updated_at: now }),
+                    });
+                    if (session.room_id || session.bed_id) {
+                        await releaseBedAndRoom(queryClient, { roomId: session.room_id, bedId: session.bed_id });
+                    }
+                    logActivity({
+                        action: ACTIVITY_ACTIONS.SESSION_CANCELLED,
+                        actorUserId: user?.id,
+                        patientId: session.patient_id,
+                        entityType: "session",
+                        entityId: session.id,
+                        details: "إلغاء الموعد المرتبط بالجلسة",
+                    });
+                }
+            }
+
+            return result;
+        },
 
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({
                 queryKey: ["appointments"],
             });
+            if (variables.data ?.status === "Cancelled") {
+                queryClient.invalidateQueries({ queryKey: ["treatment_sessions"] });
+                queryClient.invalidateQueries({ queryKey: ["rooms"] });
+                queryClient.invalidateQueries({ queryKey: ["treatment_beds"] });
+            }
             toast.success(
                 variables.data ?.status === "Cancelled" ?
                 "تم إلغاء الموعد" :
@@ -95,7 +133,6 @@ export function useAppointments() {
         onError: () => toast.error("فشل تحديث الموعد"),
     });
 
-    // حذف موعد
     const deleteMutation = useMutation({
         mutationFn: (id) =>
             apiRequest(`/appointments/${id}`, {
@@ -111,7 +148,6 @@ export function useAppointments() {
         onError: () => toast.error("فشل حذف الموعد"),
     });
 
-    // ربط المواعيد ببيانات المرضى والطبيب (full_name)
     const rawAppointments = appointmentsQuery.data ?? EMPTY_ARRAY;
     const patientsList = patientsQuery.data ?? EMPTY_ARRAY;
     const staffList = staffQuery.data ?? EMPTY_ARRAY;
@@ -135,7 +171,6 @@ export function useAppointments() {
         [rawAppointments, patientsList, staffList, servicesList]
     );
 
-    // حساب الإحصائيات بناءً على المواعيد الحالية
     const stats = useMemo(
         () => ({
             total: enrichedAppointments.length,
@@ -153,8 +188,15 @@ export function useAppointments() {
         appointments: enrichedAppointments,
         stats,
         patients: patientsList,
-        doctors: staffList.filter((s) => s.staff_type === "Doctor"), // تصفية الأطباء فقط إن أردت
-        isLoading: appointmentsQuery.isLoading || patientsQuery.isLoading || staffQuery.isLoading || serviceQuery.isLoading,
+        doctors: staffList.filter(
+            (s) => s.staff_type === "Doctor" && isStaffAvailableForAssignment(s.id, usersQuery.data ?? EMPTY_ARRAY),
+        ),
+        isLoading:
+            appointmentsQuery.isLoading ||
+            patientsQuery.isLoading ||
+            staffQuery.isLoading ||
+            serviceQuery.isLoading ||
+            usersQuery.isLoading,
         addAppointment: addMutation.mutateAsync,
         updateAppointment: updateMutation.mutateAsync,
         deleteAppointment: deleteMutation.mutateAsync,

@@ -1,7 +1,5 @@
 import { toast as sonnerToast } from "sonner";
 
-// طبقة موحّدة فوق sonner حتى لا يتكرر نفس التنسيق في كل هوك/صفحة،
-// ولضمان استبدال إشعارات "جاري التحميل" تلقائياً بالنجاح أو الخطأ.
 export const toast = {
   success: (message) => sonnerToast.success(message),
   error: (message) => sonnerToast.error(message),
@@ -11,7 +9,6 @@ export const toast = {
   dismiss: (id) => sonnerToast.dismiss(id),
 };
 
-// تنفيذ عملية غير متزامنة مع إشعار "جاري..." يتحول تلقائياً لنجاح أو خطأ.
 export function toastPromise(promise, messages) {
   return sonnerToast.promise(promise, {
     loading: messages.loading,

@@ -9,11 +9,11 @@ import {
 import {
     toast
 } from "../utils/toast";
+import { dedupeById } from "../utils/array";
 
 export function useMedicalDevices() {
     const queryClient = useQueryClient();
 
-    // جلب قائمة الأجهزة
     const devicesQuery = useQuery({
         queryKey: ["devices"],
         queryFn: () => apiRequest("/devices"),
@@ -21,7 +21,6 @@ export function useMedicalDevices() {
         refetchOnWindowFocus: false,
     });
 
-    // إضافة جهاز جديد
     const addDeviceMutation = useMutation({
         mutationFn: async (newDevice) => {
             return await apiRequest("/devices", {
@@ -38,7 +37,6 @@ export function useMedicalDevices() {
         onError: () => toast.error("فشلت إضافة الجهاز"),
     });
 
-    // تعديل بيانات جهاز بالكامل
     const updateDeviceMutation = useMutation({
         mutationFn: async ({
             id,
@@ -58,13 +56,12 @@ export function useMedicalDevices() {
         onError: () => toast.error("فشل تحديث بيانات الجهاز"),
     });
 
-    // تغيير حالة الجهاز فقط (سريع من الجدول)
   const updateStatusMutation = useMutation({
       mutationFn: async ({
           id,
           status
       }) => {
-          return await apiRequest(`/devices/${id}`, { // تم تصحيح المسار ليكون متطابقاً
+          return await apiRequest(`/devices/${id}`, { 
               method: "PATCH",
               body: JSON.stringify({
                   status
@@ -73,14 +70,34 @@ export function useMedicalDevices() {
       },
       onSuccess: () => {
           queryClient.invalidateQueries({
-              queryKey: ["devices"] // تم توحيد المفتاح ليعمل الـ Refresh بشكل صحيح
+              queryKey: ["devices"] 
           });
           toast.success("تم تحديث حالة الجهاز بنجاح");
       },
       onError: () => toast.error("فشل تحديث حالة الجهاز"),
   });
 
-    // حذف جهاز
+    const assignRoomMutation = useMutation({
+        mutationFn: async ({
+            id,
+            roomId
+        }) => {
+            return await apiRequest(`/devices/${id}`, {
+                method: "PATCH",
+                body: JSON.stringify({
+                    room_id: roomId || null
+                }),
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: ["devices"]
+            });
+            toast.success("تم تحديث موقع الجهاز بنجاح");
+        },
+        onError: () => toast.error("فشل تحديث موقع الجهاز"),
+    });
+
     const deleteDeviceMutation = useMutation({
         mutationFn: async (id) => {
             return await apiRequest(`/devices/${id}`, {
@@ -98,7 +115,7 @@ export function useMedicalDevices() {
 
     return {
         ...devicesQuery,
-        devices: devicesQuery.data ?? [],
+        devices: dedupeById(devicesQuery.data ?? []),
         handleAddDevice: addDeviceMutation.mutateAsync,
         handleUpdateDevice: updateDeviceMutation.mutateAsync,
         handleStatusChange: (id, status) => updateStatusMutation.mutateAsync({
@@ -106,9 +123,15 @@ export function useMedicalDevices() {
             status
         }),
         handleDeleteDevice: deleteDeviceMutation.mutateAsync,
+        handleAssignRoom: (id, roomId) => assignRoomMutation.mutateAsync({
+            id,
+            roomId
+        }),
+        isAssigningRoom: assignRoomMutation.isPending,
         isMutating: addDeviceMutation.isPending ||
             updateDeviceMutation.isPending ||
             updateStatusMutation.isPending ||
+            assignRoomMutation.isPending ||
             deleteDeviceMutation.isPending,
     };
 }

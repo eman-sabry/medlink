@@ -91,7 +91,6 @@ export function MedicalDevicesTable({
                       type="button"
                       onClick={() => {
                         setDropdownId(null);
-                        // إرسال معرف الجهاز والقيمة الجديدة لتنفيذ الحفظ والتحديث
                         if (!isSelected) {
                           onStatusChange(dev.id, value);
                         }

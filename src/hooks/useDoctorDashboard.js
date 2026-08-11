@@ -3,6 +3,8 @@ import { useAuth } from "./useAuth";
 import { useDoctorSessions } from "./useDoctorSessions";
 import { useTreatmentSessions } from "./useTreatmentSessions";
 import { groupCountByField, groupCountByWeekday, isSameDay } from "../utils/dashboardStats";
+import { isInProgressStatus } from "../helpers/appointmentStatus.helpers";
+import { getSessionActualRange } from "../helpers/patientProfile.helpers";
 
 export function useDoctorDashboard() {
   const { user } = useAuth();
@@ -10,11 +12,10 @@ export function useDoctorDashboard() {
 
   const {
     allAppointments,
-    timers,
-    formatTimer,
     handleStartSession,
-    handlePauseSession,
     handleCompleteSession,
+    startingAppointmentId,
+    completingAppointmentId,
     isLoading: isSessionsLoading,
   } = useDoctorSessions();
 
@@ -39,8 +40,8 @@ export function useDoctorDashboard() {
   );
 
   const currentSession = useMemo(
-    () => myAppointments.find((a) => timers[a.id]?.isActive) ?? null,
-    [myAppointments, timers],
+    () => myAppointments.find((a) => isInProgressStatus(a.status)) ?? null,
+    [myAppointments],
   );
 
   const upcomingSessions = useMemo(
@@ -70,10 +71,8 @@ export function useDoctorDashboard() {
     const workingHoursByWeekday = new Array(7).fill(0);
     const weekdayLabels = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
     myTreatmentSessions.forEach((session) => {
-      if (!session.starts_at || !session.ends_at) return;
-      const start = new Date(session.starts_at);
-      const end = new Date(session.ends_at);
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+      const { start, end } = getSessionActualRange(session);
+      if (!start || !end) return;
       workingHoursByWeekday[start.getDay()] += (end - start) / (1000 * 60 * 60);
     });
 
@@ -100,11 +99,10 @@ export function useDoctorDashboard() {
     currentSession,
     upcomingSessions,
     completedSessions,
-    timers,
-    formatTimer,
     handleStartSession,
-    handlePauseSession,
     handleCompleteSession,
+    startingAppointmentId,
+    completingAppointmentId,
     myTreatmentSessions,
   };
 }

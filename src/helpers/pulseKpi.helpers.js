@@ -1,18 +1,19 @@
 import {
   Users,
   CalendarCheck,
-  Activity,
   DollarSign,
-  Clock,
-  Stethoscope,
-  UserCog,
-  DoorOpen,
-  Wrench,
   Percent,
+  CheckCircle2,
+  Clock,
+  AlarmClockOff,
+  Stethoscope,
+  Wrench,
+  TrendingUp,
+  Wallet,
+  Scale,
 } from "lucide-react";
+import { TONE } from "../constants/semanticTone";
 
-// إعداد بطاقات مؤشرات الأداء الرئيسية لنبض المركز، مع تفعيل الاتجاه والمخطط المصغر فقط
-// حيث تتوفر بيانات زمنية حقيقية تدعمها (وليس لكل بطاقة بشكل تعسفي)
 export function buildPulseKpiCards(kpis, charts) {
   return [
     {
@@ -21,7 +22,7 @@ export function buildPulseKpiCards(kpis, charts) {
       value: kpis.patientsToday,
       description: "مرضى فريدون تمت رؤيتهم اليوم",
       icon: Users,
-      color: "blue",
+      color: TONE.info,
       trend: kpis.trends.patientsToday,
       sparklineData: charts.arrivalsToday,
     },
@@ -31,18 +32,9 @@ export function buildPulseKpiCards(kpis, charts) {
       value: kpis.appointmentsToday,
       description: "إجمالي المواعيد المجدولة اليوم",
       icon: CalendarCheck,
-      color: "purple",
+      color: TONE.info,
       trend: kpis.trends.appointmentsToday,
       sparklineData: charts.appointmentsToday,
-    },
-    {
-      key: "activeSessions",
-      label: "جلسات نشطة الآن",
-      value: kpis.activeSessionsNow,
-      description: "مرضى داخل جلسات علاجية حالياً",
-      icon: Activity,
-      color: "cyan",
-      sparklineData: charts.doctorWorkloadToday,
     },
     {
       key: "revenueToday",
@@ -51,49 +43,27 @@ export function buildPulseKpiCards(kpis, charts) {
       suffix: "ج.م",
       description: "إجمالي المدفوعات المحصّلة اليوم",
       icon: DollarSign,
-      color: "emerald",
+      color: TONE.success,
       trend: kpis.trends.revenueToday,
     },
     {
-      key: "waitingNow",
-      label: "في الانتظار الآن",
-      value: kpis.waitingNow,
-      description: `متوسط الانتظار ${kpis.avgWaitingMinutes} دقيقة`,
-      icon: Clock,
-      color: "amber",
-      sparklineData: charts.waitingQueueToday,
+      key: "expensesToday",
+      label: "مصروفات اليوم",
+      value: kpis.expensesToday,
+      suffix: "ج.م",
+      description: "المصروفات الفعلية المدفوعة اليوم",
+      icon: Wallet,
+      color: TONE.critical,
+      trend: kpis.trends.expensesToday,
     },
     {
-      key: "availableDoctors",
-      label: "أطباء متاحون",
-      value: `${kpis.availableDoctors}/${kpis.totalDoctors}`,
-      description: "جاهزون لاستقبال مرضى جدد",
-      icon: Stethoscope,
-      color: "teal",
-    },
-    {
-      key: "busyDoctors",
-      label: "أطباء مشغولون",
-      value: kpis.busyDoctors,
-      description: "داخل جلسة علاجية حالياً",
-      icon: UserCog,
-      color: "pink",
-    },
-    {
-      key: "occupiedRooms",
-      label: "غرف مشغولة",
-      value: `${kpis.occupiedRooms}/${kpis.totalRooms}`,
-      description: "من إجمالي غرف المركز",
-      icon: DoorOpen,
-      color: "indigo",
-    },
-    {
-      key: "devicesMaintenance",
-      label: "أجهزة بحاجة صيانة",
-      value: kpis.devicesNeedingMaintenance,
-      description: "تحتاج متابعة فنية",
-      icon: Wrench,
-      color: "red",
+      key: "netProfitToday",
+      label: "صافي الربح اليوم",
+      value: kpis.netProfitToday,
+      suffix: "ج.م",
+      description: "إيرادات اليوم ناقص مصروفات اليوم",
+      icon: Scale,
+      color: kpis.netProfitToday >= 0 ? TONE.success : TONE.critical,
     },
     {
       key: "completionRate",
@@ -102,8 +72,73 @@ export function buildPulseKpiCards(kpis, charts) {
       suffix: "%",
       description: `${kpis.completedToday} مكتمل من ${kpis.appointmentsToday}`,
       icon: Percent,
-      color: "purple",
+      color: TONE.success,
       trend: kpis.trends.completedToday,
     },
   ];
+}
+
+export function buildPulseInsights(kpis, charts) {
+  const insights = [
+    {
+      id: "completion",
+      icon: CheckCircle2,
+      tone: "success",
+      text: `${kpis.completedToday} من ${kpis.appointmentsToday} موعد مكتمل اليوم (${kpis.completionRateToday}%)`,
+    },
+  ];
+
+  if (kpis.waitingNow > 0) {
+    insights.push({
+      id: "waiting",
+      icon: Clock,
+      tone: "attention",
+      text: `${kpis.waitingNow} مريض بالانتظار الآن، متوسط الانتظار ${kpis.avgWaitingMinutes} دقيقة`,
+    });
+  }
+
+  if (kpis.delayedCount > 0) {
+    insights.push({
+      id: "delayed",
+      icon: AlarmClockOff,
+      tone: "critical",
+      text: `${kpis.delayedCount} موعد متأخر عن وقته المحدد`,
+    });
+  }
+
+  insights.push({
+    id: "doctors",
+    icon: Stethoscope,
+    tone: kpis.availableDoctors === 0 ? "critical" : "info",
+    text: `${kpis.availableDoctors} من ${kpis.totalDoctors} طبيب متاح الآن`,
+  });
+
+  if (kpis.devicesNeedingMaintenance > 0) {
+    insights.push({
+      id: "devices",
+      icon: Wrench,
+      tone: "attention",
+      text: `${kpis.devicesNeedingMaintenance} جهاز بحاجة صيانة`,
+    });
+  }
+
+  if (charts.peakHour) {
+    insights.push({
+      id: "peak",
+      icon: TrendingUp,
+      tone: "analytics",
+      text: `أكثر الساعات ازدحاماً تاريخياً: ${charts.peakHour.hour} بواقع ${charts.peakHour.count} موعد`,
+    });
+  }
+
+  return insights;
+}
+
+export function buildPatientFlowSeries(charts) {
+  return charts.appointmentsToday.map((item, index) => ({
+    hour: item.hour,
+    appointments: item.count,
+    arrivals: charts.arrivalsToday[index]?.count ?? 0,
+    waiting: charts.waitingQueueToday[index]?.count ?? 0,
+  }));
 }

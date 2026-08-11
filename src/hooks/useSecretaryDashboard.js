@@ -87,7 +87,6 @@ export function useSecretaryDashboard() {
         value: item.value,
         color: colorForStatus(item.name),
       })),
-      // اتجاه تسجيل المرضى الجدد شهرياً (نمو قاعدة المرضى)
       newPatientsTrend: groupCountByMonth(patients, "joined_date"),
     }),
     [appointments, patients, waitingPatients],

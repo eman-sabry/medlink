@@ -1,6 +1,5 @@
 import { STATUS_FILTER_OPTIONS } from "./appointmentStatus.helpers";
 
-// تسميات عربية موحّدة لقيم الحالة الخام القادمة من قاعدة البيانات، تُستخدم في كل مخططات لوحات التحكم
 export const APPOINTMENT_STATUS_LABELS = Object.fromEntries(
   STATUS_FILTER_OPTIONS.filter((o) => o.key !== "all").map((o) => [o.key, o.label]),
 );

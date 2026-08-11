@@ -1,6 +1,5 @@
 import { ROLES } from "./roles";
 
-// كل صلاحية بالصيغة "المورد:الإجراء". "*" تعني كل الصلاحيات بدون استثناء (المالك).
 export const PERMISSIONS = {
   [ROLES.OWNER]: ["*"],
 
@@ -18,6 +17,11 @@ export const PERMISSIONS = {
     "followup:edit",
     "billing:view",
     "billing:print",
+    "billing:create",
+    "billing:record_payment",
+    "rooms:view",
+    "rooms:manage",
+    "packages:assign",
     "profile:view",
     "profile:edit",
   ],
@@ -29,8 +33,10 @@ export const PERMISSIONS = {
     "sessions:view",
     "sessions:start",
     "sessions:end",
+    "sessions:edit",
     "notes:add",
     "prescriptions:add",
+    "prescriptions:print",
     "profile:view",
     "profile:edit",
   ],

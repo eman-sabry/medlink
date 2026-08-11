@@ -11,7 +11,7 @@ export default defineConfig({
   ],
   server: {
     watch: {
-      // تجاهل ملف قاعدة البيانات حتى لا يقوم Vite بعمل Reload للصفحة عند الإضافة أو التعديل أو الحذف
+      // ignore db.json so edits don't trigger a full page reload
       ignored: [
         '**/db.json',
         '**/data.json',

@@ -1,7 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../api/client";
+import { toast } from "../utils/toast";
+import { PAYMENT_STATUS } from "../utils/billing";
+import { logActivity, ACTIVITY_ACTIONS } from "../helpers/activityLog.helpers";
+import { useAuth } from "./useAuth";
+import { hasPermission } from "../permissions/permissions";
 
 export function usePayments() {
+  const queryClient = useQueryClient();
+  const { user, role } = useAuth();
+
   const paymentsQuery = useQuery({
     queryKey: ["payments"],
     queryFn: () => apiRequest("/payments"),
@@ -9,8 +17,52 @@ export function usePayments() {
     refetchOnWindowFocus: false,
   });
 
+  const addPaymentMutation = useMutation({
+    mutationFn: async ({ remainingBalance, amount, patientId, ...payment }) => {
+      if (!hasPermission(role, "billing:record_payment")) {
+        const error = new Error("لا تملك صلاحية تسجيل دفعة");
+        error.code = "FORBIDDEN";
+        throw error;
+      }
+      if (amount > remainingBalance + 0.01) {
+        throw new Error("المبلغ المدخل أكبر من الرصيد المتبقي على الفاتورة");
+      }
+      const created = await apiRequest("/payments", {
+        method: "POST",
+        body: JSON.stringify({ ...payment, amount }),
+      });
+
+      if (payment.invoice_id) {
+        const newStatus = amount >= remainingBalance - 0.01 ? PAYMENT_STATUS.PAID : PAYMENT_STATUS.PARTIAL;
+        await apiRequest(`/invoices/${payment.invoice_id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: newStatus }),
+        });
+      }
+
+      logActivity({
+        action: ACTIVITY_ACTIONS.PAYMENT_RECORDED,
+        actorUserId: user?.id,
+        patientId,
+        entityType: "payment",
+        entityId: created.id,
+        details: `${amount} ج.م — ${payment.method}`,
+      });
+
+      return created;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      toast.success("تم تسجيل الدفع بنجاح");
+    },
+    onError: (error) => toast.error(error.message || "فشل تسجيل الدفع"),
+  });
+
   return {
     ...paymentsQuery,
     payments: paymentsQuery.data ?? [],
+    addPayment: addPaymentMutation.mutateAsync,
+    isAddingPayment: addPaymentMutation.isPending,
   };
 }

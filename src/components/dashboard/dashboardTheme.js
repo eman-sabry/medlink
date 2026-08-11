@@ -1,5 +1,5 @@
-// لوحة ألوان موحّدة لكل عناصر لوحات التحكم (بطاقات المؤشرات، رؤوس الأقسام، أيقونات المخططات)
-// حتى يبقى نفس اللون يعني نفس الشيء في كل مكان، ولا تتكرر تعريفات التدرجات في كل ملف
+import { TONE } from "../../constants/semanticTone";
+
 export const DASHBOARD_THEMES = {
   blue: {
     icon: "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-blue-500/30",
@@ -73,8 +73,15 @@ export const DASHBOARD_THEMES = {
     ring: "ring-green-500/15",
     spark: "#22c55e",
   },
+  gray: {
+    icon: "bg-gradient-to-br from-slate-400 to-slate-500 text-white shadow-slate-500/30",
+    glow: "from-slate-500/10 via-slate-500/5",
+    ring: "ring-slate-500/15",
+    spark: "#94a3b8",
+  },
 };
 
 export function getDashboardTheme(color = "blue") {
-  return DASHBOARD_THEMES[color] ?? DASHBOARD_THEMES.blue;
+  const key = DASHBOARD_THEMES[color] ? color : (TONE[color] ?? color);
+  return DASHBOARD_THEMES[key] ?? DASHBOARD_THEMES.blue;
 }

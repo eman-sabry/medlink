@@ -3,7 +3,7 @@ import {
   User,
   ShieldCheck,
   Calendar,
-  CreditCard,
+  Phone,
 } from "lucide-react";
 import { GENDER_OPTIONS, STATUS_OPTIONS } from "../../constants/formOptions";
 import { ReusableForm } from "../ui/ReusableForm";
@@ -39,11 +39,11 @@ export function EditPatientModal({ isOpen, patient, onClose, onUpdate }) {
       icon: Calendar,
     },
     {
-      name: "national_id",
-      label: "الرقم القومي",
-      type: "text",
-      placeholder: "أدخل الرقم القومي...",
-      icon: CreditCard,
+      name: "phone",
+      label: "رقم الهاتف",
+      type: "tel",
+      placeholder: "01xxxxxxxxx",
+      icon: Phone,
     },
     {
       name: "status",
@@ -58,7 +58,7 @@ export function EditPatientModal({ isOpen, patient, onClose, onUpdate }) {
     full_name: patient.full_name ?? "",
     gender: patient.gender ?? "",
     date_of_birth: patient.date_of_birth ?? "",
-    national_id: patient.national_id ?? "",
+    phone: patient.phone ?? "",
     status: patient.status ?? "",
   };
 

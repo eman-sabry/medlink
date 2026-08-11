@@ -1,39 +1,74 @@
 import { motion } from "framer-motion";
-import { Stethoscope } from "lucide-react";
+import { Stethoscope, Calendar } from "lucide-react";
 import { EmptyState } from "../ui/EmptyState";
+
+function initialsOf(name = "") {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("");
+}
 
 export function DoctorScheduleList({ doctors = [] }) {
   return (
-    <div className="bg-card border border-border rounded-3xl p-6 shadow-sm space-y-4">
-      <div className="flex items-center gap-2.5">
-        <div className="p-2.5 rounded-2xl bg-teal-500/10 text-teal-600 ring-1 ring-teal-500/15">
-          <Stethoscope className="h-4 w-4" />
+    <div className="bg-card border border-border/80 rounded-[2.5rem] p-6 shadow-sm space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-600 ring-1 ring-teal-500/15 shadow-xs">
+            <Stethoscope className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-black text-foreground text-sm md:text-base">
+               الأطباء اليوم
+            </h3>
+            <p className="text-[11px] font-medium text-muted-foreground">
+              متابعة مواعيد الأطباء والمناوبات الحالية
+            </p>
+          </div>
         </div>
-        <h3 className="font-black text-foreground text-sm">جدول الأطباء اليوم</h3>
+
+        <span className="text-xs font-bold bg-teal-500/10 text-teal-600 px-3.5 py-1.5 rounded-full border border-teal-500/20 shrink-0">
+          إجمالي: {doctors.length}
+        </span>
       </div>
 
       {doctors.length === 0 ? (
         <EmptyState message="لا يوجد أطباء مسجّلون" rounded="rounded-2xl" />
       ) : (
-        <ul className="space-y-2.5">
-          {doctors.map((doctor, index) => (
-            <motion.li
-              key={doctor.id}
-              initial={{ opacity: 0, x: 8 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.2, delay: index * 0.03 }}
-              className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/40 text-xs hover:bg-muted/60 transition-colors"
-            >
-              <span className="font-bold text-foreground truncate">
-                {doctor.full_name}
-              </span>
-              <span className="text-muted-foreground shrink-0">
-                {doctor.todaysAppointmentsCount} موعد اليوم
-              </span>
-            </motion.li>
-          ))}
-        </ul>
+        <div className="flex flex-wrap gap-3">
+          {doctors.map((doctor, index) => {
+            const appointmentCount = doctor.todaysAppointmentsCount || 0;
+
+            return (
+              <motion.div
+                key={doctor.id || index}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.2, delay: index * 0.03 }}
+                className="flex items-center gap-3.5 pr-4 pl-3.5 py-3 rounded-2xl border bg-muted/40 border-border/60 hover:bg-card hover:border-teal-500/40 hover:shadow-md transition-all duration-200"
+              >
+                <div className="relative shrink-0">
+                  <div className="h-10 w-10 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-600 border border-teal-500/30 flex items-center justify-center font-black text-xs shadow-xs">
+                    {initialsOf(doctor.full_name)}
+                  </div>
+                </div>
+
+                <div className="min-w-0">
+                  <p className="font-bold text-foreground text-xs md:text-sm truncate max-w-[140px]">
+                    {doctor.full_name}
+                  </p>
+                  <p className="text-[11px] font-black text-teal-600 dark:text-teal-600 mt-0.5 flex items-center gap-1">
+                    <Calendar className="h-3 w-3 shrink-0" />
+                    <span>{appointmentCount} موعد اليوم</span>
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

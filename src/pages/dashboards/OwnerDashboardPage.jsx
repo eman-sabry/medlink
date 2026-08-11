@@ -6,13 +6,17 @@ import { LineChartCard } from "../../components/charts/LineChartCard";
 import { BarChartCard } from "../../components/charts/BarChartCard";
 import { AreaChartCard } from "../../components/charts/AreaChartCard";
 import { ComposedChartCard } from "../../components/charts/ComposedChartCard";
+import { PieChartCard } from "../../components/charts/PieChartCard";
 import { RecentActivityList } from "../../components/dashboard/RecentActivityList";
 import { AppointmentListPanel } from "../../components/dashboard/AppointmentListPanel";
 import { TopDoctorsList } from "../../components/dashboard/TopDoctorsList";
 import { SystemAlertsPanel } from "../../components/dashboard/SystemAlertsPanel";
 import { QuickActionsPanel } from "../../components/dashboard/QuickActionsPanel";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
-import { buildOwnerQuickActions, buildOwnerKpiCards } from "../../helpers/ownerDashboard.helpers";
+import {
+  buildOwnerQuickActions,
+  buildOwnerKpiCards,
+} from "../../helpers/ownerDashboard.helpers";
 import {
   TrendingUp,
   CalendarRange,
@@ -22,17 +26,26 @@ import {
   BarChart3,
   ActivitySquare,
   LayoutDashboard,
+  Scale,
+  Wrench,
 } from "lucide-react";
 
 export default function OwnerDashboardPage() {
   const { user } = useAuth();
-  const { isLoading, stats, charts, recentActivities, upcomingAppointments, systemAlerts } =
-    useOwnerDashboard();
+  const {
+    isLoading,
+    stats,
+    charts,
+    recentActivities,
+    upcomingAppointments,
+    systemAlerts,
+  } = useOwnerDashboard();
 
   const kpiCards = buildOwnerKpiCards(stats, charts);
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto" dir="rtl">
+      <QuickActionsPanel actions={buildOwnerQuickActions()} />
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -56,20 +69,23 @@ export default function OwnerDashboardPage() {
       </motion.div>
 
       <section className="space-y-4">
-        <SectionHeader eyebrow="Overview" title="نظرة عامة" icon={ActivitySquare} color="blue" />
+        <SectionHeader
+          eyebrow="Overview"
+          title="نظرة عامة"
+          icon={ActivitySquare}
+          color="blue"
+        />
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {kpiCards.map((card) => (
-            <KpiCard key={card.key} {...card} isLoading={isLoading} />
+          {kpiCards.map(({ key, ...cardProps }) => (
+            <KpiCard key={key} {...cardProps} isLoading={isLoading} />
           ))}
         </div>
       </section>
 
       <section className="space-y-4">
-        <SectionHeader eyebrow="Growth Trends" title="اتجاهات النمو" icon={TrendingUp} color="purple" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <LineChartCard
             title="اتجاه الإيرادات"
-            subtitle="Revenue Trend"
             icon={TrendingUp}
             color="emerald"
             isLoading={isLoading}
@@ -79,7 +95,6 @@ export default function OwnerDashboardPage() {
           />
           <BarChartCard
             title="المواعيد الشهرية"
-            subtitle="Monthly Appointments"
             icon={CalendarRange}
             color="purple"
             isLoading={isLoading}
@@ -111,7 +126,54 @@ export default function OwnerDashboardPage() {
       </section>
 
       <section className="space-y-4">
-        <SectionHeader eyebrow="Operations" title="التحليلات التشغيلية" icon={BarChart3} color="indigo" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ComposedChartCard
+            title="الإيرادات مقابل المصروفات"
+            subtitle="Revenue vs Expenses — شهرياً"
+            icon={Scale}
+            color="emerald"
+            isLoading={isLoading}
+            data={charts.revenueVsExpenses}
+            xKey="month"
+            series={[
+              {
+                key: "revenue",
+                label: "الإيرادات",
+                type: "line",
+                color: "#10b981",
+              },
+              {
+                key: "expenses",
+                label: "المصروفات",
+                type: "line",
+                color: "#f43f5e",
+              },
+            ]}
+          />
+          <PieChartCard
+            title="المصروفات حسب التصنيف"
+            subtitle="Expenses by Category"
+            icon={BarChart3}
+            color="orange"
+            isLoading={isLoading}
+            data={charts.expensesByCategory}
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-4">
+          <AreaChartCard
+            title="اتجاه مصروفات الصيانة"
+            subtitle="Maintenance Expenses Trend"
+            icon={Wrench}
+            color="red"
+            isLoading={isLoading}
+            data={charts.maintenanceExpensesTrend}
+            xKey="day"
+            series={[{ key: "total", label: "مصروفات الصيانة (ج.م)" }]}
+          />
+        </div>
+      </section>
+
+      <section className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ComposedChartCard
             title="عبء العمل حسب الطبيب"
@@ -123,7 +185,12 @@ export default function OwnerDashboardPage() {
             xKey="name"
             series={[
               { key: "completed", label: "جلسات مكتملة", type: "bar" },
-              { key: "hours", label: "ساعات العمل", type: "line", axis: "right" },
+              {
+                key: "hours",
+                label: "ساعات العمل",
+                type: "line",
+                axis: "right",
+              },
             ]}
           />
           <BarChartCard
@@ -190,23 +257,16 @@ export default function OwnerDashboardPage() {
       </section>
 
       <section className="space-y-4">
-        <SectionHeader eyebrow="Activity" title="النشاط والتنبيهات" icon={CalendarClock} color="orange" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <RecentActivityList activities={recentActivities} />
-          <AppointmentListPanel
-            title="المواعيد القادمة"
-            icon={CalendarClock}
-            appointments={upcomingAppointments}
-            emptyMessage="لا توجد مواعيد قادمة حالياً"
-          />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <TopDoctorsList doctors={charts.doctorPerformance} />
-          <SystemAlertsPanel alerts={systemAlerts} />
-        </div>
+        <RecentActivityList activities={recentActivities} />
+        <AppointmentListPanel
+          title="المواعيد القادمة"
+          icon={CalendarClock}
+          appointments={upcomingAppointments}
+          emptyMessage="لا توجد مواعيد قادمة حالياً"
+        />
+        <TopDoctorsList doctors={charts.doctorPerformance} />
+        <SystemAlertsPanel alerts={systemAlerts} />
       </section>
-
-      <QuickActionsPanel actions={buildOwnerQuickActions()} />
     </div>
   );
 }

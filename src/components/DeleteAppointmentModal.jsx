@@ -1,4 +1,4 @@
-import { ConfirmModal } from "./ui/ConfirmModal"; // تأكدي من مسار الاستيراد الصحيح
+import { ConfirmModal } from "./ui/ConfirmModal"; 
 
 export function DeleteAppointmentModal({
   isOpen,

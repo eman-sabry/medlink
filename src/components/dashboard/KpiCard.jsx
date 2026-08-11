@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { Sparkline } from "./Sparkline";
@@ -19,7 +20,7 @@ function TrendBadge({ trend }) {
   );
 }
 
-export function KpiCard({
+export const KpiCard = memo(function KpiCard({
   label,
   value,
   suffix,
@@ -90,4 +91,4 @@ export function KpiCard({
       )}
     </motion.div>
   );
-}
+});

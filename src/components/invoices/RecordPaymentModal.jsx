@@ -1,0 +1,123 @@
+import { useState } from "react";
+import { X, Loader2, Wallet } from "lucide-react";
+import { CustomSelect } from "../ui/CustomSelect";
+import { PAYMENT_METHOD_LABELS } from "../../utils/billing";
+
+const METHOD_OPTIONS = Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({ value, label }));
+
+export function RecordPaymentModal({ isOpen, invoice, onClose, onRecordPayment }) {
+  const [amount, setAmount] = useState(() => invoice?.balanceDue ?? 0);
+  const [method, setMethod] = useState("Cash");
+  const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reference, setReference] = useState("");
+  const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!isOpen || !invoice) return null;
+
+  const remaining = invoice.balanceDue;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    const numericAmount = Number(amount);
+    if (!numericAmount || numericAmount <= 0) return;
+
+    setIsSubmitting(true);
+    try {
+      await onRecordPayment({
+        invoice_id: invoice.id,
+        amount: numericAmount,
+        remainingBalance: remaining,
+        method,
+        paid_at: new Date(paidAt).toISOString(),
+        reference: reference.trim(),
+        notes: notes.trim(),
+      });
+      onClose();
+    } catch (error) {
+      console.error("Record payment error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-card border border-border w-full max-w-md rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+        <div className="flex items-center justify-between border-b border-border pb-4">
+          <div>
+            <h2 className="text-xl font-black text-foreground tracking-wide flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" />
+              تسجيل دفعة
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">فاتورة {invoice.invoice_no}</p>
+          </div>
+          <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-all cursor-pointer">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="p-3 rounded-2xl bg-muted/40 text-center">
+            <p className="text-muted-foreground">الإجمالي</p>
+            <p className="font-black text-foreground mt-0.5">{invoice.total_amount} ج.م</p>
+          </div>
+          <div className="p-3 rounded-2xl bg-rose-500/10 text-center">
+            <p className="text-muted-foreground">المتبقي</p>
+            <p className="font-black text-rose-600 mt-0.5">{remaining} ج.م</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-muted-foreground">المبلغ (ج.م)</label>
+            <input
+              type="number"
+              min="0.01"
+              max={remaining}
+              step="0.01"
+              required
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full h-12 rounded-2xl border border-border bg-background px-4 text-sm focus:outline-hidden focus:border-primary transition-all"
+            />
+            {Number(amount) > remaining && (
+              <p className="text-[11px] text-destructive font-bold">المبلغ أكبر من الرصيد المتبقي</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-muted-foreground">طريقة الدفع</label>
+            <CustomSelect value={method} onChange={setMethod} options={METHOD_OPTIONS} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-muted-foreground">تاريخ الدفع</label>
+            <input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} className="w-full h-12 rounded-2xl border border-border bg-background px-4 text-sm" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-muted-foreground">رقم مرجعي / رقم العملية (اختياري)</label>
+            <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="مثال: TRX-10021" className="w-full h-12 rounded-2xl border border-border bg-background px-4 text-sm" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-muted-foreground">ملاحظات</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded-2xl border border-border bg-background p-4 text-sm resize-none" />
+          </div>
+
+          <div className="flex items-center gap-3 pt-4 border-t border-border">
+            <button type="button" onClick={onClose} className="flex-1 py-3.5 rounded-2xl bg-muted text-foreground font-bold text-sm hover:bg-muted/80 transition-all cursor-pointer">
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || !amount || Number(amount) <= 0 || Number(amount) > remaining}
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 shadow-lg shadow-primary/20 transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              <span>تسجيل الدفعة</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

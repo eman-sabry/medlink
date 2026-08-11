@@ -37,7 +37,6 @@ export default function PatientFollowUpPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto" dir="rtl">
-      {/* عنوان الصفحة */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
@@ -49,10 +48,8 @@ export default function PatientFollowUpPage() {
         </div>
       </div>
 
-      {/* بطاقات الإحصائيات (تستخدم للفلترة السريعة عند النقر) */}
       <StatsGrid items={statItems} className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
 
-      {/* شريط التحكم: البحث يمين، وفلتر الحالة يسار */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 ">
         <SearchBar
           value={searchQuery}
@@ -61,7 +58,6 @@ export default function PatientFollowUpPage() {
           className="sm:w-80"
         />
 
-        {/* مجموعة الفلتر والتحكم (على اليسار) باستخدام Dropdown المخصص */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           {activeTab !== "all" && (
             <button
@@ -82,7 +78,6 @@ export default function PatientFollowUpPage() {
         </div>
       </div>
 
-      {/* محتوى الجدول أو حالة التحميل */}
       {isLoading ? (
         <LoadingState message="جاري تحميل بيانات المتابعة..." />
       ) : (

@@ -13,7 +13,6 @@ import {
 export function usePatients() {
     const queryClient = useQueryClient();
 
-    // جلب المرضى
     const patientsQuery = useQuery({
         queryKey: ["patients"],
         queryFn: () => apiRequest("/patients"),
@@ -24,7 +23,6 @@ export function usePatients() {
         refetchOnMount: false,
     });
 
-    // إضافة مريض
     const addMutation = useMutation({
         mutationFn: (newPatient) =>
             apiRequest("/patients", {
@@ -41,7 +39,6 @@ export function usePatients() {
         onError: () => toast.error("فشلت إضافة المريض"),
     });
 
-    // تعديل مريض
     const updateMutation = useMutation({
         mutationFn: ({
                 id,
@@ -61,7 +58,6 @@ export function usePatients() {
         onError: () => toast.error("فشل تحديث بيانات المريض"),
     });
 
-    // حذف مريض
     const deleteMutation = useMutation({
         mutationFn: (id) =>
             apiRequest(`/patients/${id}`, {

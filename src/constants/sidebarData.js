@@ -10,7 +10,9 @@ import {
     FileText,
     CheckSquare,
     CreditCard,
-    Package
+    Package,
+    ReceiptText,
+    Banknote
 } from "lucide-react";
 
 export const SIDEBAR_SECTIONS = [{
@@ -85,13 +87,23 @@ export const SIDEBAR_SECTIONS = [{
     {
         title: "المالية",
         items: [{
+                label: "الفواتير",
+                to: "/invoices",
+                icon: ReceiptText
+            },
+            {
+                label: "المصروفات",
+                to: "/expenses",
+                icon: Banknote
+            },
+            {
                 label: "الخدمات",
                 to: "/services",
                 icon: CreditCard
             },
             {
                 label: "الباقات العلاجية",
-                to: "/packages", // أو /package-templates حسب مسار الروابط لديك
+                to: "/packages", 
                 icon: Package
             },
         ]

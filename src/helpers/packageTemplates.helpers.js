@@ -62,7 +62,6 @@ export const PACKAGE_FORM_FIELDS = [
   },
 ];
 
-// تحويل بيانات الفورم (نص المميزات وأرقام السعر) إلى الشكل الجاهز للإرسال للـ API
 export function buildPackagePayload(formData) {
   const formattedFeatures = formData.features_text
     ? String(formData.features_text)

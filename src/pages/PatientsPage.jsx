@@ -6,14 +6,17 @@ import { PatientTable } from "../components/patients/PatientTable";
 import { AddPatientModal } from "../components/patients/AddPatientModal";
 import { EditPatientModal } from "../components/patients/EditPatientModal";
 import { SearchBar } from "../components/ui/SearchBar";
+import { StatusFilterDropdown } from "../components/ui/StatusFilterDropdown";
 import { LoadingState } from "../components/ui/LoadingState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { PermissionGuard } from "../guards/PermissionGuard";
+import { PATIENT_STATUS_FILTER_OPTIONS } from "../helpers/statusFilters";
 import { useNavigate } from "react-router-dom";
 
 export default function PatientsPage() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -29,13 +32,15 @@ export default function PatientsPage() {
 
   const filteredPatients = useMemo(
     () =>
-      patients.filter(
-        (p) =>
+      patients.filter((p) => {
+        const matchesSearch =
           p.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.file_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.national_id?.includes(searchQuery),
-      ),
-    [patients, searchQuery],
+          p.phone?.includes(searchQuery);
+        const matchesStatus = statusFilter === "all" || p.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [patients, searchQuery, statusFilter],
   );
 
   const handleEditPatient = useCallback((patient) => {
@@ -52,7 +57,6 @@ export default function PatientsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* رأس الصفحة وزر الإضافة */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-foreground mt-2">
@@ -73,14 +77,21 @@ export default function PatientsPage() {
         </PermissionGuard>
       </div>
 
-      {/* شريط البحث وطرق العرض */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="ابحث بالاسم، رقم الملف، أو الرقم القومي..."
-          className="max-w-md"
-        />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="ابحث بالاسم، رقم الملف، أو رقم الهاتف..."
+            className="max-w-md"
+          />
+          <StatusFilterDropdown
+            options={PATIENT_STATUS_FILTER_OPTIONS}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            triggerClassName="w-full sm:w-44 h-12 px-4 text-xs"
+          />
+        </div>
 
         <div className="flex items-center gap-1 bg-muted p-1 rounded-2xl border border-border self-start">
           <button
@@ -108,7 +119,6 @@ export default function PatientsPage() {
         </div>
       </div>
 
-      {/* عرض البيانات */}
       {isLoading && patients.length === 0 ? (
         <LoadingState message="جاري تحميل بيانات المرضى..." rounded="rounded-3xl" />
       ) : isError ? (
@@ -134,7 +144,6 @@ export default function PatientsPage() {
         </div>
       )}
 
-      {/* نافذة الإضافة */}
       <AddPatientModal
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
@@ -144,7 +153,6 @@ export default function PatientsPage() {
         }}
       />
 
-      {/* نافذة التعديل */}
       <EditPatientModal
         isOpen={isEditOpen}
         patient={selectedPatient}

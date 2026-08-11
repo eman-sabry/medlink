@@ -18,14 +18,6 @@ export const STATUS_OPTIONS = [{
         value: "Arrived"
     },
     {
-        label: "قيد الجلسة",
-        value: "InSession"
-    },
-    {
-        label: "مكتمل",
-        value: "Completed"
-    },
-    {
         label: "مجدول",
         value: "Scheduled"
     },

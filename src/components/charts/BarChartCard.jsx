@@ -24,8 +24,6 @@ export function BarChartCard({
   isError = false,
   height = 280,
   stacked = false,
-  // عندما تكون true وهناك سلسلة واحدة فقط، يُلوَّن كل عمود حسب حقل color الخاص بعنصر البيانات نفسه
-  // (مفيد لمخططات توزيع الحالات، بديلاً عن الدائرة، حيث يمثل كل عمود حالة مختلفة بلون دلالي ثابت)
   colorByCategory = false,
 }) {
   return (

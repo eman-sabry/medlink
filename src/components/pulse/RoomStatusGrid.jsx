@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { EmptyState } from "../ui/EmptyState";
 import { useNavigate } from "react-router-dom";
+import { StatusBreakdownMeter } from "../dashboard/primitives/StatusBreakdownMeter";
 
 const STATUS_CONFIG = {
   Available: {
@@ -50,6 +51,18 @@ export function RoomStatusGrid({ rooms = [] }) {
   const navigate = useNavigate();
   const displayedRooms = rooms.slice(0, 5);
 
+  const statusCounts = rooms.reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] ?? 0) + 1;
+    return acc;
+  }, {});
+  const occupancySegments = Object.entries(STATUS_CONFIG).map(([key, cfg]) => ({
+    key,
+    label: cfg.label,
+    value: statusCounts[key] ?? 0,
+    barClassName: cfg.accent,
+    dotClassName: cfg.accent,
+  }));
+
   return (
     <div className="bg-card border border-border/60 rounded-3xl p-6 shadow-sm space-y-4">
       {/* Header Section */}
@@ -75,6 +88,10 @@ export function RoomStatusGrid({ rooms = [] }) {
         </button>
       </div>
 
+      {rooms.length > 0 && (
+        <StatusBreakdownMeter segments={occupancySegments} totalLabel={`${rooms.length} غرفة إجمالاً`} />
+      )}
+
       {/* Grid Content */}
       {rooms.length === 0 ? (
         <EmptyState message="لا توجد غرف مسجّلة" rounded="rounded-2xl" />
@@ -96,10 +113,7 @@ export function RoomStatusGrid({ rooms = [] }) {
                 key={room.id}
                 className={`group relative border rounded-2xl p-3.5 transition-all duration-200 shadow-2xs hover:shadow-md overflow-hidden flex items-center justify-between gap-4 cursor-pointer ${config.container}`}
               >
-                {/* شريط الحالة الجانبي الملون بدقة */}
-                <div
-                  className={`absolute top-0 right-0 bottom-0 w-1.5 ${config.accent}`}
-                />
+             
 
                 {/* Left Side: Room Name & Type */}
                 <div className="flex items-center gap-3 pr-3 min-w-0">

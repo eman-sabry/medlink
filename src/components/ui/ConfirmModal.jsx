@@ -18,7 +18,6 @@ export function ConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
       <div className="bg-card border border-border w-full max-w-md rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 text-center">
-        {/* أيقونة التحذير */}
         <div
           className={`flex h-16 w-16 items-center justify-center rounded-2xl mx-auto ${
             isDestructive
@@ -29,7 +28,6 @@ export function ConfirmModal({
           <AlertTriangle className="h-8 w-8" />
         </div>
 
-        {/* العنوان والوصف */}
         <div className="space-y-2">
           <h3 className="text-xl font-black text-foreground">{title}</h3>
           {description && (
@@ -39,7 +37,6 @@ export function ConfirmModal({
           )}
         </div>
 
-        {/* الأزرار */}
         <div className="flex items-center gap-3 pt-2">
           <button
             type="button"

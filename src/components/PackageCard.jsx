@@ -10,10 +10,12 @@ import {
 
 function PackageCardImpl({
   pkg,
+  activeSubscriptions = 0,
   onEdit,
   onDelete,
   activeMenuId,
   onToggleMenu,
+  onViewSubscribers,
 }) {
   const isMenuOpen = activeMenuId === pkg.id;
 
@@ -25,7 +27,6 @@ function PackageCardImpl({
           : "border-border hover:border-primary/50"
       }`}
     >
-      {/* شارة التمييز (الأكثر مبيعاً / مميز) */}
       {pkg.badge && (
         <div className="absolute -top-3 right-6 bg-primary text-primary-foreground text-[11px] font-bold px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
           <Zap className="h-3 w-3 fill-current" />
@@ -33,7 +34,6 @@ function PackageCardImpl({
         </div>
       )}
 
-      {/* رأس الكارت */}
       <div className="flex items-center justify-between">
         <div className="p-3 rounded-2xl bg-primary/10 text-primary">
           <Package className="h-5 w-5" />
@@ -76,7 +76,6 @@ function PackageCardImpl({
         </div>
       </div>
 
-      {/* تفاصيل الباقة والأسعار */}
       <div className="space-y-2 text-center sm:text-right">
         <h3 className="font-black text-foreground text-lg">{pkg.name}</h3>
         <p className="text-xs text-muted-foreground">
@@ -99,7 +98,6 @@ function PackageCardImpl({
         </div>
       </div>
 
-      {/* قائمة المميزات */}
       <div className="space-y-2 pt-2 border-t border-border/60 text-xs">
         {pkg.discount_percent > 0 && (
           <div className="flex items-center gap-2 text-emerald-600 font-medium">
@@ -125,19 +123,17 @@ function PackageCardImpl({
           </div>
         )}
       </div>
-      {/* شريط التقدم السفلي */}
-      <div className="space-y-1.5 pt-2">
-        <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium">
-          <span>اشتراكات نشطة</span>
-          <span className="font-bold text-foreground">١٢</span>
-        </div>
-        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-          <div
-            className="bg-primary h-full rounded-full"
-            style={{ width: "65%" }}
-          />
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onViewSubscribers?.(pkg);
+        }}
+        className="w-full flex items-center justify-between text-[11px] text-muted-foreground font-medium pt-2 border-t border-border/60 hover:text-primary transition-colors cursor-pointer"
+      >
+        <span>اشتراكات نشطة</span>
+        <span className="font-bold text-foreground">{activeSubscriptions}</span>
+      </button>
     </div>
   );
 }

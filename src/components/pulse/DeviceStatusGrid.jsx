@@ -1,6 +1,7 @@
 import { Cpu, CheckCircle2, PlayCircle, Wrench, AlertOctagon, ArrowLeft } from "lucide-react";
 import { EmptyState } from "../ui/EmptyState";
 import { useNavigate } from "react-router-dom";
+import { StatusBreakdownMeter } from "../dashboard/primitives/StatusBreakdownMeter";
 
 const CATEGORY_CONFIG = {
   Available: {
@@ -37,6 +38,18 @@ export function DeviceStatusGrid({ devices = [] }) {
   const navigate = useNavigate();
   const displayedDevices = devices.slice(0, 5);
 
+  const categoryCounts = devices.reduce((acc, d) => {
+    acc[d.category] = (acc[d.category] ?? 0) + 1;
+    return acc;
+  }, {});
+  const availabilitySegments = Object.entries(CATEGORY_CONFIG).map(([key, cfg]) => ({
+    key,
+    label: cfg.label,
+    value: categoryCounts[key] ?? 0,
+    barClassName: cfg.accent,
+    dotClassName: cfg.accent,
+  }));
+
   return (
     <div className="bg-card border border-border/60 rounded-3xl p-6 shadow-sm space-y-4">
       {/* Header Section */}
@@ -60,6 +73,10 @@ export function DeviceStatusGrid({ devices = [] }) {
         </button>
       </div>
 
+      {devices.length > 0 && (
+        <StatusBreakdownMeter segments={availabilitySegments} totalLabel={`${devices.length} جهاز إجمالاً`} />
+      )}
+
       {/* Grid Content */}
       {devices.length === 0 ? (
         <EmptyState message="لا توجد أجهزة مسجّلة" rounded="rounded-2xl" />
@@ -79,12 +96,9 @@ export function DeviceStatusGrid({ devices = [] }) {
             return (
               <div
                 key={device.id}
-                onClick={() => navigate(`/devices/${device.id}`)}
                 className={`group relative border rounded-2xl p-3.5 transition-all duration-200 shadow-2xs hover:shadow-md overflow-hidden flex items-center justify-between gap-4 cursor-pointer ${config.container}`}
               >
-                {/* شريط الحالة الجانبي الملون */}
-                <div className={`absolute top-0 right-0 bottom-0 w-1.5 ${config.accent}`} />
-
+              
                 {/* Left Side: Device Name & Model/Type */}
                 <div className="flex items-center gap-3 pr-3 min-w-0">
                   <div className="p-2.5 rounded-xl bg-background border border-border/60 text-foreground shrink-0 shadow-2xs">
@@ -117,9 +131,7 @@ export function DeviceStatusGrid({ devices = [] }) {
                     <span>{config.label}</span>
                   </div>
 
-                  <div className="p-2 rounded-xl bg-background border border-border/60 text-muted-foreground group-hover:text-primary group-hover:border-primary/30 transition-all shadow-2xs">
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                  </div>
+                
                 </div>
               </div>
             );

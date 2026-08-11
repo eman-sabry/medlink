@@ -7,10 +7,24 @@ import {
   Stethoscope,
   FileText,
   CheckCircle2,
+  Package,
+  Wallet,
+  Receipt,
 } from "lucide-react";
 import { STATUS_OPTIONS } from "../constants/appointmentsConstants";
 import { CustomSelect } from "./ui/CustomSelect";
 import { useServices } from "../hooks/useServices";
+import { useAuth } from "../hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePatientPackages, linkAppointmentToPackage, createIndividualBookingInvoice } from "../hooks/usePatientPackages";
+import { useInvoices } from "../hooks/useInvoices";
+import { usePayments } from "../hooks/usePayments";
+import { findActivePackageForPatient, PACKAGE_STATUS_META } from "../helpers/patientPackages.helpers";
+import { PAYMENT_METHOD_LABELS } from "../utils/billing";
+import { formatDate } from "../utils/date";
+import { toast } from "../utils/toast";
+
+const METHOD_OPTIONS = Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({ value, label }));
 
 export function AppointmentModal({
   isOpen,
@@ -20,7 +34,12 @@ export function AppointmentModal({
   patients = [],
   doctors = [],
 }) {
+  const { role, user } = useAuth();
+  const queryClient = useQueryClient();
   const { services, isLoading: loadingServices } = useServices();
+  const { patientPackages } = usePatientPackages();
+  const { addInvoice } = useInvoices();
+  const { addPayment } = usePayments();
 
   const [formData, setFormData] = useState({
     patient_id: "",
@@ -32,6 +51,8 @@ export function AppointmentModal({
     starts_at: new Date().toISOString().slice(0, 16),
     status: "Scheduled",
   });
+  const [billingChoice, setBillingChoice] = useState("package");
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,6 +60,7 @@ export function AppointmentModal({
     if (!isOpen) return;
 
     if (appointmentToEdit) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the form when the modal opens/switches target, not a render-time derivation
       setFormData({
         patient_id: appointmentToEdit.patient_id || "",
         patient_name: appointmentToEdit.patient_name || "",
@@ -70,10 +92,21 @@ export function AppointmentModal({
         ends_at: "",
         status: "Scheduled",
       });
+      setBillingChoice("package");
+      setPaymentMethod("Cash");
     }
   }, [isOpen, appointmentToEdit]);
 
   if (!isOpen) return null;
+
+  const coveringPackage = formData.patient_id ? findActivePackageForPatient(patientPackages, formData.patient_id) : null;
+  const packageStatusMeta = coveringPackage ? PACKAGE_STATUS_META[coveringPackage.computedStatus] ?? PACKAGE_STATUS_META.Active : null;
+
+  const selectedService = services.find((s) => s.id === formData.service_id) ?? null;
+  const servicePrice = selectedService?.default_price ?? 0;
+
+  const isIndividualBilling = !coveringPackage || billingChoice === "individual";
+  const showBookingBillingSection = !appointmentToEdit && Boolean(formData.patient_id);
 
   const handlePatientChange = (selectedId) => {
     const selectedPatient = patients.find((p) => p.id === selectedId);
@@ -82,6 +115,7 @@ export function AppointmentModal({
       patient_id: selectedId,
       patient_name: selectedPatient ? selectedPatient.full_name : "",
     }));
+    setBillingChoice("package");
   };
 
   const handleDoctorChange = (selectedId) => {
@@ -106,12 +140,37 @@ export function AppointmentModal({
     e.preventDefault();
     if (isSubmitting) return;
 
+    if (showBookingBillingSection && isIndividualBilling && !formData.service_id) {
+      toast.error("اختر الخدمة أولاً لحساب سعر الفاتورة الفردية");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await onSave(formData);
+      const saved = await onSave(formData);
+
+      if (showBookingBillingSection && saved?.id) {
+        if (!isIndividualBilling && coveringPackage) {
+          await linkAppointmentToPackage(queryClient, {
+            appointmentId: saved.id,
+            patientPackageId: coveringPackage.id,
+          });
+        } else {
+          await createIndividualBookingInvoice(queryClient, {
+            appointment: saved,
+            addInvoice,
+            addPayment,
+            paymentMethod,
+            role,
+            actorUserId: user?.id,
+          });
+        }
+      }
+
       onClose();
     } catch (err) {
       console.error("Save appointment error:", err);
+      toast.error(err?.message || "فشل حجز الموعد");
     } finally {
       setIsSubmitting(false);
     }
@@ -120,6 +179,7 @@ export function AppointmentModal({
   const patientOptions = patients.map((p) => ({
     value: p.id,
     label: `${p.full_name} (${p.file_no || "بدون رقم ملف"})`,
+    searchValue: `${p.full_name} ${p.file_no ?? ""} ${p.phone ?? ""}`,
   }));
 
   const doctorOptions = doctors.map((d) => ({
@@ -138,10 +198,9 @@ export function AppointmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200 text-right">
-      {/* تم إزالة قيود الطول وشريط التمرير ليطول المودال حسب المحتوى تماماً */}
-      <div className="bg-card border border-border w-full max-w-xl rounded-3xl shadow-2xl flex flex-col h-auto">
+      <div className="bg-card border border-border w-full max-w-xl rounded-3xl shadow-2xl flex flex-col h-auto max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border p-6 md:px-8 pb-4">
+        <div className="flex items-center justify-between border-b border-border p-6 md:px-8 pb-4 shrink-0">
           <h2 className="text-xl font-black text-foreground tracking-wide">
             {appointmentToEdit ? "تعديل بيانات الموعد" : "حجز موعد جديد"}
           </h2>
@@ -155,8 +214,8 @@ export function AppointmentModal({
           </button>
         </div>
 
-        {/* Form Body - بدون سكرول وبطول تلقائي */}
-        <form onSubmit={handleSubmit} className="flex flex-col">
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="flex flex-col overflow-y-auto">
           <div className="p-6 md:p-8 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Patient Selection */}
@@ -286,10 +345,90 @@ export function AppointmentModal({
                 />
               </div>
             </div>
+
+            {showBookingBillingSection && (
+              <div className="space-y-3 pt-2 border-t border-border">
+                <label className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                  <Wallet className="h-3.5 w-3.5 text-primary" />
+                  <span>فوترة الجلسة</span>
+                </label>
+
+                {coveringPackage && (
+                  <div className="rounded-2xl bg-primary/5 border border-primary/10 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-primary min-w-0">
+                        <Package className="h-4 w-4 shrink-0" />
+                        <span className="font-bold text-sm truncate">باقة نشطة متاحة — {coveringPackage.templateName}</span>
+                      </div>
+                      <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold border ${packageStatusMeta?.badge ?? ""}`}>
+                        {packageStatusMeta?.label ?? coveringPackage.computedStatus}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 text-center text-[11px]">
+                      <div className="p-2 rounded-xl bg-card">
+                        <p className="text-muted-foreground">الإجمالي</p>
+                        <p className="font-black text-foreground">{coveringPackage.sessions_total}</p>
+                      </div>
+                      <div className="p-2 rounded-xl bg-card">
+                        <p className="text-muted-foreground">مستخدَم</p>
+                        <p className="font-black text-amber-600">{coveringPackage.sessions_used_cache ?? 0}</p>
+                      </div>
+                      <div className="p-2 rounded-xl bg-card">
+                        <p className="text-muted-foreground">متبقي</p>
+                        <p className="font-black text-emerald-600">{coveringPackage.remainingSessions}</p>
+                      </div>
+                      <div className="p-2 rounded-xl bg-card">
+                        <p className="text-muted-foreground">الانتهاء</p>
+                        <p className="font-black text-foreground">{coveringPackage.end_date ? formatDate(coveringPackage.end_date) : "—"}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setBillingChoice("package")}
+                        className={`py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer border ${
+                          billingChoice === "package"
+                            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
+                            : "bg-card text-foreground border-border hover:bg-muted/50"
+                        }`}
+                      >
+                        استخدام الباقة
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBillingChoice("individual")}
+                        className={`py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer border ${
+                          billingChoice === "individual"
+                            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
+                            : "bg-card text-foreground border-border hover:bg-muted/50"
+                        }`}
+                      >
+                        فاتورة فردية
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {isIndividualBilling && (
+                  <div className="rounded-2xl bg-muted/40 border border-border p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-foreground">
+                      <Receipt className="h-4 w-4 text-primary" />
+                      <span className="font-bold text-sm">جلسة فردية</span>
+                      <span className="mr-auto font-black text-primary text-sm">{servicePrice} ج.م</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-muted-foreground">طريقة الدفع</label>
+                      <CustomSelect value={paymentMethod} onChange={setPaymentMethod} options={METHOD_OPTIONS} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3 p-6 md:px-8 pt-4 border-t border-border bg-card">
+          <div className="flex items-center gap-3 p-6 md:px-8 pt-4 border-t border-border bg-card shrink-0">
             <button
               type="button"
               onClick={onClose}

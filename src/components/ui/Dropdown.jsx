@@ -11,7 +11,6 @@ export function Dropdown({
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // دعم الاستخدام الداخلي أو الخارجي للحالة
   const isControlled = externalIsOpen !== undefined;
   const isOpen = isControlled ? externalIsOpen : internalIsOpen;
 
@@ -45,7 +44,7 @@ export function Dropdown({
 
       {isOpen && (
         <div
-          onClick={() => setIsOpen(false)} // إغلاق القائمة عند النقر في أي مكان داخلها (على العناصر)
+          onClick={() => setIsOpen(false)} 
           className={`absolute ${alignmentClass} mt-2 w-60 rounded-3xl border shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl overflow-hidden`}
           style={{
             background: "var(--card)",

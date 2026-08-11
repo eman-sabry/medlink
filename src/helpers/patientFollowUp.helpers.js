@@ -6,7 +6,6 @@ import {
   CalendarDays,
 } from "lucide-react";
 
-// إعداد بطاقات الإحصائيات القابلة للنقر للفلترة السريعة
 export const FOLLOW_UP_STAT_CONFIG = [
   {
     key: "needsCall",
@@ -42,7 +41,6 @@ export const FOLLOW_UP_STAT_CONFIG = [
   },
 ];
 
-// خيارات قائمة فلترة الحالة المنسدلة
 export const FOLLOW_UP_TAB_OPTIONS = [
   {
     key: "all",

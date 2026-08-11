@@ -6,7 +6,6 @@ import { canAccessRoute } from "../permissions/routePermissions";
 export function Sidebar({ onClose, collapsed }) {
   const { role } = useAuth();
 
-  // كل قسم يعرض فقط الروابط المسموح بها لدور المستخدم الحالي، وتُحذف الأقسام الفارغة تماماً
   const visibleSections = SIDEBAR_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => canAccessRoute(role, item.to)),
@@ -14,7 +13,6 @@ export function Sidebar({ onClose, collapsed }) {
 
   return (
     <aside className="sticky top-0 h-screen flex flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)] border-l border-white/10 shadow-2xl select-none font-['Cairo',sans-serif] shrink-0">
-      {/* رأس الشريط الجانبي (الشعار والعنوان) */}
       <div className="px-5 border-b border-white/10 flex items-center justify-center shrink-0 h-20 bg-black/20 backdrop-blur-md">
         {!collapsed ? (
           <div className="overflow-hidden whitespace-nowrap py-2 flex items-center gap-3 w-full">
@@ -53,7 +51,6 @@ export function Sidebar({ onClose, collapsed }) {
         )}
       </div>
 
-      {/* الروابط وأقسام القائمة مع سكرول داخلي خاص بها إن لزم */}
       <div className="flex-1 overflow-y-auto px-3.5 py-6 space-y-6 text-sm [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {visibleSections.map((section, sectionIdx) => (
           <div key={sectionIdx}>

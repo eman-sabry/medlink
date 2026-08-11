@@ -3,7 +3,7 @@ import {
   User,
   ShieldCheck,
   Calendar,
-  CreditCard,
+  Phone,
 } from "lucide-react";
 import { GENDER_OPTIONS, STATUS_OPTIONS } from "../../constants/formOptions";
 import { usePatients } from "../../hooks/usePatients";
@@ -43,11 +43,11 @@ export function AddPatientModal({ isOpen, onClose }) {
       icon: Calendar,
     },
     {
-      name: "national_id",
-      label: "الرقم القومي",
-      type: "text",
-      placeholder: "أدخل الرقم القومي...",
-      icon: CreditCard,
+      name: "phone",
+      label: "رقم الهاتف",
+      type: "tel",
+      placeholder: "01xxxxxxxxx",
+      icon: Phone,
     },
     {
       name: "status",
@@ -56,14 +56,12 @@ export function AddPatientModal({ isOpen, onClose }) {
       options: STATUS_OPTIONS,
       icon: ShieldCheck,
     },
-    // إضافة حقل مخفي لتاريخ الانضمام لكي يتم تضمينه تلقائياً في الـ formData عبر الـ ReusableForm
     {
       name: "joined_date",
       type: "hidden",
     },
   ];
 
-  // تمرير تاريخ اليوم مباشرة في القيم الأولية
   const initialData = {
     status: "Active",
     joined_date: new Date().toISOString().split("T")[0],
@@ -71,7 +69,7 @@ export function AddPatientModal({ isOpen, onClose }) {
 
   const handleSubmit = async (formData) => {
     try {
-      await addPatient(formData); // سيحتوي الـ formData على joined_date تلقائياً من الـ initialData والـ fields
+      await addPatient(formData); 
     } catch (error) {
       console.error("Failed to add patient:", error);
       throw error;

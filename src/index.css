@@ -102,3 +102,38 @@ body {
   /* لجعل الحروف حادة ونظيفة */
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* أنماط الطباعة: تُستخدم لطباعة الفاتورة الواحدة وسجل الفواتير الكامل (PrintableInvoice /
+   PrintableInvoiceRegister)، حيث تكون هذه العناصر مخفية دائماً وتظهر فقط أثناء الطباعة عبر
+   الفئة print:block من Tailwind. هذا الجزء يضبط هوامش الصفحة ويزيل الظلال/الألوان الخلفية
+   غير الضرورية عند الطباعة الفعلية. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  * {
+    box-shadow: none !important;
+  }
+
+  /* يمنع قطع صف الجدول بين صفحتين، ويُعيد طباعة رأس الجدول (thead) في أعلى كل صفحة جديدة
+     عند تعدد الصفحات — مطلوب لكل من الفاتورة المفردة وسجل الفواتير الكامل */
+  .invoice-print-table {
+    border-collapse: collapse;
+  }
+
+  .invoice-print-table thead {
+    display: table-header-group;
+  }
+
+  .invoice-print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

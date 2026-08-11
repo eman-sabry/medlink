@@ -19,14 +19,12 @@ export function CustomSelect({ value, onChange, options = [], placeholder }) {
 
   const selectedOption = options.find((opt) => opt.value === value);
 
-  // تصفية العناصر بناءً على البحث
   const filteredOptions = options.filter((opt) =>
-    opt.label.toLowerCase().includes(searchQuery.toLowerCase()),
+    (opt.searchValue ?? opt.label).toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
-      {/* حقل الإدخال الرئيسي */}
       <div
         onClick={() => setIsOpen(!isOpen)}
         className="w-full h-12 rounded-2xl border px-4 text-sm flex items-center justify-between cursor-pointer transition-all shadow-xs outline-none"
@@ -58,7 +56,6 @@ export function CustomSelect({ value, onChange, options = [], placeholder }) {
         />
       </div>
 
-      {/* القائمة المنسدلة الداخلية */}
       {isOpen && (
         <div
           className="absolute left-0 right-0 mt-2 rounded-2xl border shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl flex flex-col gap-2"
@@ -69,7 +66,6 @@ export function CustomSelect({ value, onChange, options = [], placeholder }) {
             borderRadius: "1.5rem",
           }}
         >
-          {/* حقل البحث داخل القائمة (يظهر إذا كان عدد الخيارات أكثر من 4) */}
           {options.length > 4 && (
             <div className="relative px-1 pt-1">
               <Search
@@ -93,7 +89,6 @@ export function CustomSelect({ value, onChange, options = [], placeholder }) {
             </div>
           )}
 
-          {/* قائمة العناصر مع سكرول داخلي وأقصى ارتفاع */}
           <div className="max-h-52 overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt) => {

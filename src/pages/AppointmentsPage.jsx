@@ -46,7 +46,6 @@ export default function AppointmentsPage() {
     [appointments, searchTerm, statusFilter, dateFilter],
   );
 
-  // دالة تحديث حالة الموعد (مثل الانتقال إلى قيد الجلسة، مكتمل، إلخ)
   const handleUpdateStatus = useCallback(
     async (app, newStatus) => {
       try {
@@ -78,15 +77,18 @@ export default function AppointmentsPage() {
 
   const handleSaveModal = async (data) => {
     try {
+      let saved;
       if (editingAppointment) {
-        await updateAppointment({ id: editingAppointment.id, data });
+        saved = await updateAppointment({ id: editingAppointment.id, data });
       } else {
-        await addAppointment(data);
+        saved = await addAppointment(data);
       }
       setIsModalOpen(false);
       setEditingAppointment(null);
+      return saved;
     } catch (err) {
       console.error("Failed saving appointment:", err);
+      throw err;
     }
   };
 
@@ -147,15 +149,15 @@ export default function AppointmentsPage() {
         <SearchBar
           value={searchTerm}
           onChange={setSearchTerm}
-          placeholder="بحث باسم المريض أو الطبيب المعالج..."
+          placeholder="بحث باسم المريض، رقم الملف، الهاتف، أو الطبيب المعالج..."
           className="lg:w-96"
         />
 
         <div className="flex flex-col sm:flex-row gap-3.5 w-full lg:w-auto">
-          {/* فلتر التاريخ */}
           <div className="relative w-full sm:w-48">
             <CalendarDays className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
+              dir="ltr"
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
@@ -173,7 +175,6 @@ export default function AppointmentsPage() {
             )}
           </div>
 
-          {/* قائمة منسدلة مخصصة متناسقة تتغير ألوانها ديناميكياً */}
           <StatusFilterDropdown
             options={STATUS_FILTER_OPTIONS}
             value={statusFilter}

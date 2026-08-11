@@ -46,7 +46,6 @@ export function usePatientFollowUp() {
             followUpStatus,
             notes
         }) => {
-            // إرسال الحقول المراد تحديثها فقط باستخدام PATCH ليتوافق مع JSON Server
             const payload = {};
             const targetStatus = followUpStatus || status;
             if (targetStatus !== undefined) {
@@ -63,7 +62,6 @@ export function usePatientFollowUp() {
                 body: JSON.stringify(payload),
             });
         },
-        // التحديث المتفائل (Optimistic Update) لتغيير الواجهة فوراً
         onMutate: async ({
             followUpId,
             followUpStatus,

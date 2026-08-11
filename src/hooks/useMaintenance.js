@@ -9,11 +9,14 @@ import {
 import {
     toast
 } from "../utils/toast";
+import { useExpenses } from "./useExpenses";
+import { useAuth } from "./useAuth";
 
 export function useMaintenance() {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
+    const { ensureExpenseForMaintenance } = useExpenses();
 
-    // جلب قائمة سجلات الصيانة
     const maintenanceQuery = useQuery({
         queryKey: ["maintenance"],
         queryFn: () => apiRequest("/maintenance"),
@@ -21,7 +24,6 @@ export function useMaintenance() {
         refetchOnWindowFocus: false,
     });
 
-    // إضافة سجل صيانة جديد
     const addMaintenanceMutation = useMutation({
         mutationFn: async (newEntry) => {
             return await apiRequest("/maintenance", {
@@ -29,16 +31,16 @@ export function useMaintenance() {
                 body: JSON.stringify(newEntry),
             });
         },
-        onSuccess: () => {
+        onSuccess: (created) => {
             queryClient.invalidateQueries({
                 queryKey: ["maintenance"]
             });
             toast.success("تم إنشاء سجل الصيانة بنجاح");
+            ensureExpenseForMaintenance({ maintenance: created, actorUserId: user?.id });
         },
         onError: () => toast.error("فشل إنشاء سجل الصيانة"),
     });
 
-    // تعديل بيانات سجل الصيانة بالكامل
     const updateMaintenanceMutation = useMutation({
         mutationFn: async ({
             id,
@@ -49,16 +51,16 @@ export function useMaintenance() {
                 body: JSON.stringify(updatedData),
             });
         },
-        onSuccess: () => {
+        onSuccess: (updated) => {
             queryClient.invalidateQueries({
                 queryKey: ["maintenance"]
             });
             toast.success("تم تحديث سجل الصيانة بنجاح");
+            ensureExpenseForMaintenance({ maintenance: updated, actorUserId: user?.id });
         },
         onError: () => toast.error("فشل تحديث سجل الصيانة"),
     });
 
-    // تغيير حالة الصيانة فقط (سريع من الجدول)
     const updateStatusMutation = useMutation({
         mutationFn: async ({
             id,
@@ -71,7 +73,7 @@ export function useMaintenance() {
                 }),
             });
         },
-        onSuccess: (_, variables) => {
+        onSuccess: (updated, variables) => {
             queryClient.invalidateQueries({
                 queryKey: ["maintenance"]
             });
@@ -80,11 +82,15 @@ export function useMaintenance() {
                 "تم إنجاز الصيانة بنجاح" :
                 "تم تحديث حالة الصيانة بنجاح"
             );
+            const cachedEntry = (maintenanceQuery.data ?? []).find((m) => m.id === variables.id);
+            ensureExpenseForMaintenance({
+                maintenance: { ...cachedEntry, ...updated, status: variables.status },
+                actorUserId: user?.id,
+            });
         },
         onError: () => toast.error("فشل تحديث حالة الصيانة"),
     });
 
-    // حذف سجل صيانة
     const deleteMaintenanceMutation = useMutation({
         mutationFn: async (id) => {
             return await apiRequest(`/maintenance/${id}`, {

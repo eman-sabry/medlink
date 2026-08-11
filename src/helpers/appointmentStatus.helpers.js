@@ -9,6 +9,26 @@ import {
   CalendarDays,
 } from "lucide-react";
 
+export const IN_PROGRESS_STATUSES = ["in-progress", "insession", "in_progress", "active", "ongoing", "قيد الجلسة"];
+export const COMPLETED_STATUSES = ["completed", "منتهي", "مكتمل", "مكتملة"];
+export const WAITING_STATUSES = ["waiting", "arrived", "في الانتظار", "وصل"];
+
+export function normalizeStatus(status) {
+  return status?.trim()?.toLowerCase() || "";
+}
+
+export function isInProgressStatus(status) {
+  return IN_PROGRESS_STATUSES.includes(normalizeStatus(status));
+}
+
+export function isCompletedStatus(status) {
+  return COMPLETED_STATUSES.includes(normalizeStatus(status));
+}
+
+export function isWaitingStatus(status) {
+  return WAITING_STATUSES.includes(normalizeStatus(status));
+}
+
 export const STATUS_FILTER_OPTIONS = [
   {
     key: "all",

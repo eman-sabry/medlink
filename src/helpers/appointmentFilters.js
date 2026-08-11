@@ -6,7 +6,9 @@ export function filterAppointments(appointments, { searchTerm, statusFilter, dat
     const doctorText = app.doctor_name || app.doctor_id || "";
     const matchesSearch =
       patientText.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctorText.toLowerCase().includes(searchTerm.toLowerCase());
+      doctorText.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (app.patient_phone && app.patient_phone.includes(searchTerm)) ||
+      (app.patient_file_no && app.patient_file_no.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
 

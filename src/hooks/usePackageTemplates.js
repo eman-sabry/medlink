@@ -14,7 +14,7 @@ export function usePackageTemplates() {
     const queryClient = useQueryClient();
 
     const packagesQuery = useQuery({
-        queryKey: ["package_templates"],
+        queryKey: ["package-templates"],
         queryFn: () => apiRequest("/package-templates"),
         staleTime: 1000 * 60 * 5,
         refetchOnWindowFocus: false,
@@ -29,7 +29,7 @@ export function usePackageTemplates() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({
-                queryKey: ["package_templates"]
+                queryKey: ["package-templates"]
             });
             toast.success("تمت إضافة الباقة بنجاح");
         },
@@ -48,7 +48,7 @@ export function usePackageTemplates() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({
-                queryKey: ["package_templates"]
+                queryKey: ["package-templates"]
             });
             toast.success("تم تحديث الباقة بنجاح");
         },
@@ -63,7 +63,7 @@ export function usePackageTemplates() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({
-                queryKey: ["package_templates"]
+                queryKey: ["package-templates"]
             });
             toast.success("تم حذف الباقة بنجاح");
         },

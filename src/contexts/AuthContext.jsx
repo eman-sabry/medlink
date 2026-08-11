@@ -4,8 +4,6 @@ import { toast } from "../utils/toast";
 import { AuthContext } from "./authContextInstance";
 
 export function AuthProvider({ children }) {
-  // القراءة من localStorage متزامنة، لذا يمكن حساب الحالة الأولية مباشرة
-  // بدل انتظار useEffect (يتجنب setState داخل effect وأي وميض لصفحة تسجيل الدخول)
   const [initialSession] = useState(() => authService.loadSession());
   const [user, setUser] = useState(initialSession?.user ?? null);
 
@@ -27,7 +25,6 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  // تحديث بيانات المستخدم الحالي محلياً (بعد نجاح تعديل الملف الشخصي) دون الحاجة لتسجيل الدخول من جديد
   const updateUser = useCallback((partialUser) => {
     setUser((prev) => {
       if (!prev) return prev;

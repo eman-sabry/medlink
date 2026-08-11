@@ -1,4 +1,3 @@
-// لوحة ألوان موحّدة لكل الرسوم البيانية في التطبيق حتى لا يُعاد اختراعها في كل مخطط
 export const CHART_COLORS = [
   "var(--primary)",
   "#6366f1", // indigo-500
@@ -23,7 +22,6 @@ export const CHART_TOOLTIP_STYLE = {
 export const CHART_GRID_COLOR = "var(--border)";
 export const CHART_AXIS_COLOR = "var(--muted-foreground)";
 
-// ألوان دلالية ثابتة للحالات المتكررة عبر التطبيق، حتى تبقى نفس الحالة بنفس اللون في كل مخطط
 export const STATUS_COLORS = {
   Completed: "#10b981",
   InSession: "#06b6d4",
@@ -42,6 +40,9 @@ export const STATUS_COLORS = {
   Occupied: "#e11d48",
   Cleaning: "#f59e0b",
   Pending: "#f59e0b",
+  Paid: "#10b981",
+  Partial: "#f59e0b",
+  Unpaid: "#e11d48",
 };
 
 export function colorForStatus(status, fallback = "var(--primary)") {

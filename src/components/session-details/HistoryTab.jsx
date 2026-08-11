@@ -1,20 +1,24 @@
-export function HistoryTab({ doctorName }) {
+import { History } from "lucide-react";
+import { PatientSessionHistory } from "../patients/details/PatientSessionHistory";
+import { SessionActivity } from "./SessionActivity";
+import { EmptyState } from "../ui/EmptyState";
+
+export function HistoryTab({ previousSessions, sessionActivity }) {
   return (
-    <div className="bg-card border border-border p-6 rounded-3xl space-y-4 shadow-sm">
-      <h2 className="text-lg font-black text-foreground">سجل الجلسات السابقة</h2>
-      <div className="space-y-3">
-        <div className="p-4 rounded-2xl bg-muted/40 border border-border flex justify-between items-center text-xs">
-          <div>
-            <p className="font-bold text-foreground">
-              الجلسة السابقة - تأهيل العلاج الطبيعي
-            </p>
-            <p className="text-muted-foreground">المعالج: {doctorName}</p>
-          </div>
-          <span className="bg-emerald-500/10 text-emerald-600 font-bold px-3 py-1 rounded-full">
-            مكتملة
-          </span>
-        </div>
+    <div className="space-y-5">
+      <div className="bg-card border border-border rounded-3xl p-5 shadow-sm space-y-3">
+        <h3 className="font-black text-foreground text-sm flex items-center gap-2">
+          <History className="h-4 w-4 text-primary" />
+          جلسات سابقة لهذا المريض
+        </h3>
+        {previousSessions.length > 0 ? (
+          <PatientSessionHistory sessions={previousSessions} />
+        ) : (
+          <EmptyState message="لا توجد جلسات سابقة لهذا المريض" rounded="rounded-2xl" />
+        )}
       </div>
+
+      <SessionActivity activity={sessionActivity} />
     </div>
   );
 }

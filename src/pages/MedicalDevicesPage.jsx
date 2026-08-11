@@ -1,12 +1,16 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "../api/client";
 import { useMedicalDevices } from "../hooks/useMedicalDevices";
 import { MedicalDevicesTable } from "../components/MedicalDevicesTable";
 import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { ReusableForm } from "../components/ui/ReusableForm";
 import { SearchBar } from "../components/ui/SearchBar";
+import { StatusFilterDropdown } from "../components/ui/StatusFilterDropdown";
 import { LoadingState } from "../components/ui/LoadingState";
 import DeviceStats from "../components/DeviceStats";
-import { DEVICE_FORM_FIELDS } from "../helpers/medicalDevices.helpers";
+import { getDeviceFormFields } from "../helpers/medicalDevices.helpers";
+import { DEVICE_STATUS_FILTER_OPTIONS } from "../helpers/statusFilters";
 import { countBy } from "../utils/stats";
 import { Plus } from "lucide-react";
 
@@ -20,24 +24,33 @@ export default function MedicalDevicesPage() {
     handleDeleteDevice,
   } = useMedicalDevices();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const roomsQuery = useQuery({
+    queryKey: ["rooms"],
+    queryFn: () => apiRequest("/rooms"),
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+  const roomOptions = useMemo(
+    () => (roomsQuery.data ?? []).map((r) => ({ label: r.name, value: r.id })),
+    [roomsQuery.data],
+  );
+  const deviceFormFields = useMemo(() => getDeviceFormFields(roomOptions), [roomOptions]);
 
-  // حالات للتحكم في فتح وغلق مودال الفورم وتحديد نوعه (إضافة أو تعديل)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState(null);
 
-  // حالات مودال التأكيد بالحذف
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deviceToDelete, setDeviceToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // فتح مودال الإضافة
   const handleOpenAdd = () => {
     setEditingDevice(null);
     setIsFormModalOpen(true);
   };
 
-  // فتح مودال التعديل مع تمرير بيانات الجهاز الحالي
   const handleOpenEdit = (dev) => {
     setEditingDevice(dev);
     setIsFormModalOpen(true);
@@ -60,7 +73,6 @@ export default function MedicalDevicesPage() {
     }
   };
 
-  // دالة الحفظ الموحدة (للإضافة أو التعديل)
   const handleFormSubmit = async (formData) => {
     if (editingDevice) {
       await handleUpdateDevice({ id: editingDevice.id, updatedData: formData });
@@ -69,16 +81,22 @@ export default function MedicalDevicesPage() {
     }
   };
 
-  const filteredDevices = useMemo(
-    () =>
-      devices.filter(
-        (d) =>
-          d.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          d.serial_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          d.room_id?.toLowerCase().includes(searchQuery.toLowerCase()),
-      ),
-    [devices, searchQuery],
-  );
+const filteredDevices = useMemo(
+  () =>
+    devices.filter((d) => {
+      const matchesSearch =
+        d.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        d.serial_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        d.room_id?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "all" ||
+        d.status?.toLowerCase() === statusFilter?.toLowerCase();
+
+      return matchesSearch && matchesStatus;
+    }),
+  [devices, searchQuery, statusFilter],
+);
 
   const deviceCounts = useMemo(
     () => ({
@@ -92,7 +110,6 @@ export default function MedicalDevicesPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto" dir="rtl">
-      {/* عنوان الصفحة */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <span className="text-xs text-muted-foreground font-bold">
@@ -115,17 +132,23 @@ export default function MedicalDevicesPage() {
         </button>
       </div>
 
-      {/* لوحة الإحصائيات السريعة */}
       <DeviceStats {...deviceCounts} />
 
-      {/* شريط البحث */}
-      <SearchBar
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder="بحث باسم الجهاز، الرقم التسلسلي، أو كود الغرفة..."
-      />
+      <div className="flex flex-col  justify-between sm:flex-row items-stretch sm:items-center gap-3">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="بحث باسم الجهاز، الرقم التسلسلي، أو كود الغرفة..."
+          className="max-w-md flex-1"
+        />
+        <StatusFilterDropdown
+          options={DEVICE_STATUS_FILTER_OPTIONS}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          triggerClassName="w-full sm:w-44 h-12 px-4 text-xs"
+        />
+      </div>
 
-      {/* محتوى الجدول أو حالة التحميل */}
       {isLoading ? (
         <LoadingState message="جاري تحميل بيانات الأجهزة الطبية..." />
       ) : (
@@ -137,11 +160,10 @@ export default function MedicalDevicesPage() {
         />
       )}
 
-      {/* مودال الفورم القابل لإعادة الاستخدام (للإضافة والتعديل) */}
       {isFormModalOpen && (
         <ReusableForm
           title={editingDevice ? "تعديل بيانات الجهاز" : "إضافة جهاز طبي جديد"}
-          fields={DEVICE_FORM_FIELDS}
+          fields={deviceFormFields}
           initialData={
             editingDevice || {
               name: "",
@@ -155,7 +177,6 @@ export default function MedicalDevicesPage() {
         />
       )}
 
-      {/* نافذة التأكيد بالحذف الاحترافية */}
       <ConfirmModal
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}

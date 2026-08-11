@@ -1,15 +1,20 @@
 import { useMemo, useState } from "react";
 import { usePackageTemplates } from "../hooks/usePackageTemplates";
+import { usePatientPackages } from "../hooks/usePatientPackages";
+import { usePatients } from "../hooks/usePatients";
 import { PackageCard } from "../components/PackageCard";
+import { PackageSubscribersModal } from "../components/packages/PackageSubscribersModal";
 import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { ReusableForm } from "../components/ui/ReusableForm";
 import { SearchBar } from "../components/ui/SearchBar";
+import { StatusFilterDropdown } from "../components/ui/StatusFilterDropdown";
 import { LoadingState } from "../components/ui/LoadingState";
 import { EmptyState } from "../components/ui/EmptyState";
 import {
   PACKAGE_FORM_FIELDS,
   buildPackagePayload,
 } from "../helpers/packageTemplates.helpers";
+import { ACTIVE_INACTIVE_FILTER_OPTIONS } from "../helpers/statusFilters";
 import { Plus, TrendingUp, Users, Zap } from "lucide-react";
 
 export default function PackageTemplatesPage() {
@@ -20,8 +25,34 @@ export default function PackageTemplatesPage() {
     handleUpdatePackage,
     handleDeletePackage,
   } = usePackageTemplates();
+  const { patientPackages } = usePatientPackages();
+  const { patients } = usePatients();
+
+  const activeSubscriptionsByTemplate = useMemo(() => {
+    const map = new Map();
+    patientPackages
+      .filter((p) => p.computedStatus === "Active")
+      .forEach((p) => map.set(p.package_template_id, (map.get(p.package_template_id) ?? 0) + 1));
+    return map;
+  }, [patientPackages]);
+
+  const packageStats = useMemo(() => {
+    const activeSubscriptions = patientPackages.filter((p) => p.computedStatus === "Active").length;
+    const revenue = patientPackages.reduce((sum, p) => sum + (p.price_snapshot ?? 0), 0);
+    let bestSellerId = null;
+    let bestSellerCount = 0;
+    activeSubscriptionsByTemplate.forEach((count, templateId) => {
+      if (count > bestSellerCount) {
+        bestSellerCount = count;
+        bestSellerId = templateId;
+      }
+    });
+    const bestSellerName = packages.find((p) => p.id === bestSellerId)?.name ?? "لا يوجد بعد";
+    return { activeSubscriptions, revenue, bestSellerName };
+  }, [patientPackages, activeSubscriptionsByTemplate, packages]);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [activeMenuId, setActiveMenuId] = useState(null);
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -30,6 +61,8 @@ export default function PackageTemplatesPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [packageToDelete, setPackageToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [viewingSubscribersFor, setViewingSubscribersFor] = useState(null);
 
   const handleOpenAdd = () => {
     setEditingPackage(null);
@@ -71,15 +104,12 @@ export default function PackageTemplatesPage() {
 
   const filteredPackages = useMemo(
     () =>
-      packages.filter((p) =>
-        p.name?.toLowerCase().includes(searchQuery.toLowerCase()),
-      ),
-    [packages, searchQuery],
-  );
-
-  const activeCount = useMemo(
-    () => packages.filter((p) => p.status === "Active").length,
-    [packages],
+      packages.filter((p) => {
+        const matchesSearch = p.name?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === "all" || p.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [packages, searchQuery, statusFilter],
   );
 
   return (
@@ -88,7 +118,6 @@ export default function PackageTemplatesPage() {
       dir="rtl"
       onClick={() => setActiveMenuId(null)}
     >
-      {/* عنوان الصفحة */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <span className="text-xs text-muted-foreground font-bold">
@@ -111,7 +140,6 @@ export default function PackageTemplatesPage() {
         </button>
       </div>
 
-      {/* لوحة الإحصائيات العلوية */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-4 rounded-3xl border border-border bg-card shadow-sm flex items-center justify-between">
           <div>
@@ -119,7 +147,7 @@ export default function PackageTemplatesPage() {
               اشتراكات نشطة
             </span>
             <span className="text-2xl font-bold text-foreground mt-1 block">
-              {activeCount * 12}
+              {packageStats.activeSubscriptions}
             </span>
           </div>
           <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-600">
@@ -133,7 +161,7 @@ export default function PackageTemplatesPage() {
               إيراد الباقات
             </span>
             <span className="text-2xl font-bold text-foreground mt-1 block font-mono">
-              ١٧٥,١٥٠ <span className="text-xs font-normal">ج.م</span>
+              {packageStats.revenue.toLocaleString("ar-EG")} <span className="text-xs font-normal">ج.م</span>
             </span>
           </div>
           <div className="p-3 rounded-2xl bg-primary/10 text-primary">
@@ -146,8 +174,8 @@ export default function PackageTemplatesPage() {
             <span className="text-xs font-medium text-muted-foreground block">
               الأكثر مبيْعاً
             </span>
-            <span className="text-lg font-extrabold text-foreground mt-1 block">
-              جلسة مفردة
+            <span className="text-lg font-extrabold text-foreground mt-1 block truncate">
+              {packageStats.bestSellerName}
             </span>
           </div>
           <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-500">
@@ -156,15 +184,22 @@ export default function PackageTemplatesPage() {
         </div>
       </div>
 
-      {/* شريط البحث */}
-      <SearchBar
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder="بحث باسم الباقة..."
-        variant="boxed"
-      />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="بحث باسم الباقة..."
+          variant="boxed"
+          className="flex-1"
+        />
+        <StatusFilterDropdown
+          options={ACTIVE_INACTIVE_FILTER_OPTIONS}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          triggerClassName="w-full sm:w-44 h-12 px-4 text-xs"
+        />
+      </div>
 
-      {/* عرض الكروت باستخدام الكومبوننت المنفصل */}
       {isLoading ? (
         <LoadingState message="جاري تحميل الباقات العلاجية..." rounded="rounded-3xl" />
       ) : (
@@ -174,10 +209,12 @@ export default function PackageTemplatesPage() {
               <PackageCard
                 key={pkg.id}
                 pkg={pkg}
+                activeSubscriptions={activeSubscriptionsByTemplate.get(pkg.id) ?? 0}
                 onEdit={handleOpenEdit}
                 onDelete={handleDeleteClick}
                 activeMenuId={activeMenuId}
                 onToggleMenu={setActiveMenuId}
+                onViewSubscribers={setViewingSubscribersFor}
               />
             ))
           ) : (
@@ -186,7 +223,6 @@ export default function PackageTemplatesPage() {
         </div>
       )}
 
-      {/* مودال الفورم الموحد */}
       {isFormModalOpen && (
         <ReusableForm
           title={editingPackage ? "تعديل الباقة العلاجية" : "إضافة باقة جديدة"}
@@ -204,6 +240,14 @@ export default function PackageTemplatesPage() {
           onClose={() => setIsFormModalOpen(false)}
         />
       )}
+
+      <PackageSubscribersModal
+        isOpen={Boolean(viewingSubscribersFor)}
+        packageTemplate={viewingSubscribersFor}
+        patientPackages={patientPackages}
+        patients={patients}
+        onClose={() => setViewingSubscribersFor(null)}
+      />
 
       <ConfirmModal
         isOpen={deleteModalOpen}

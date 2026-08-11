@@ -1,7 +1,7 @@
 import { apiRequest } from "../api/client";
 
 const SESSION_KEY = "medlink_session";
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 ساعة - تسجيل خروج تلقائي بعدها
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000; 
 
 function sanitizeUser(user) {
   const safeUser = { ...user };

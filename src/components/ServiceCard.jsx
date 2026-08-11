@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   Stethoscope,
   MoreVertical,
@@ -8,7 +9,7 @@ import {
 
 } from "lucide-react";
 
-export function ServiceCard({
+function ServiceCardImpl({
   service,
   onEdit,
   onDelete,
@@ -19,17 +20,15 @@ export function ServiceCard({
 
   return (
     <div className="relative bg-gradient-to-b from-card to-muted/20 border border-border hover:border-primary/60 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between space-y-6 group">
-      {/* رأس الكارت (أيقونة مميزة مع إضاءة خفيفة، وشارة الحالة، وقائمة الخيارات) */}
       <div className="flex items-center justify-between">
         <div className="relative">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-emerald-500/30 rounded-2xl blur-sm opacity-50 group-hover:opacity-100 transition duration-300"></div>
-          <div className="relative p-3.5 rounded-2xl bg-card border border-border/80 text-primary shadow-sm flex items-center justify-center">
+          <div className="relative p-3.5 rounded-2xl bg-card text-primary shadow-sm flex items-center justify-center">
             <Stethoscope className="h-5 w-5" />
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* شارة الحالة */}
           <span
             className={`px-3 py-1 rounded-full font-bold text-[10px] tracking-wide shadow-xs ${
               service.status === "Active"
@@ -79,7 +78,6 @@ export function ServiceCard({
         </div>
       </div>
 
-      {/* تفاصيل الخدمة (العنوان، الفئة، والوصف الغني) */}
       <div className="space-y-3 text-right">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-primary/5 border border-primary/10 text-primary text-xs font-bold">
           <Tag className="h-3.5 w-3.5" />
@@ -90,7 +88,6 @@ export function ServiceCard({
           {service.name}
         </h3>
 
-        {/* صندوق الوصف لملء المساحة بشكل أنيق */}
         <div className="p-3 rounded-2xl bg-muted/40 border border-border/50 min-h-[60px] flex items-center">
           <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
             {service.description ||
@@ -99,7 +96,6 @@ export function ServiceCard({
         </div>
       </div>
 
-      {/* قسم السعر والمدة الزمنية في أسفل الكارت */}
       <div className="pt-4 border-t border-border/60 flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 px-3 py-1.5 rounded-xl border border-border/40">
           <Clock className="h-4 w-4 text-primary shrink-0" />
@@ -119,3 +115,5 @@ export function ServiceCard({
     </div>
   );
 }
+
+export const ServiceCard = memo(ServiceCardImpl);

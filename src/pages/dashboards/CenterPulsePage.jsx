@@ -1,142 +1,148 @@
 import {
-  Clock3,
+  Clock,
   Activity,
-  TrendingUp,
+  AlarmClockOff,
   BarChart3,
   ShieldAlert,
-  LayoutGrid,
 } from "lucide-react";
 import { useCenterPulse } from "../../hooks/useCenterPulse";
 import { PulseHeader } from "../../components/pulse/PulseHeader";
 import { KpiCard } from "../../components/dashboard/KpiCard";
-import { DailySummaryCard } from "../../components/pulse/DailySummaryCard";
-import { DoctorStatusList } from "../../components/pulse/DoctorStatusList";
+import { LiveStatTile } from "../../components/dashboard/primitives/LiveStatTile";
+import { InsightBanner } from "../../components/dashboard/primitives/InsightBanner";
+import { AlertStack } from "../../components/dashboard/primitives/AlertStack";
+import { DoctorStatusCompact } from "../../components/pulse/DoctorStatusCompact";
 import { RoomStatusGrid } from "../../components/pulse/RoomStatusGrid";
 import { DeviceStatusGrid } from "../../components/pulse/DeviceStatusGrid";
-import { DelayedCasesPanel } from "../../components/pulse/DelayedCasesPanel";
 import { WaitingQueuePanel } from "../../components/pulse/WaitingQueuePanel";
 import { SectionHeader } from "../../components/dashboard/SectionHeader";
-import { SystemAlertsPanel } from "../../components/dashboard/SystemAlertsPanel";
-import { LineChartCard } from "../../components/charts/LineChartCard";
-import { AreaChartCard } from "../../components/charts/AreaChartCard";
+import { ComposedChartCard } from "../../components/charts/ComposedChartCard";
 import { BarChartCard } from "../../components/charts/BarChartCard";
-import { buildPulseKpiCards } from "../../helpers/pulseKpi.helpers";
+import {
+  buildPulseKpiCards,
+  buildPulseInsights,
+  buildPatientFlowSeries,
+} from "../../helpers/pulseKpi.helpers";
+import { MissedPatientsPanel } from "../../components/pulse/MissedPatientsPanel";
 
 export default function CenterPulsePage() {
   const {
     isLoading,
     kpis,
-    delayedCases,
     waitingQueue,
     doctorStatusList,
     roomStatusList,
+    missedPatientsList,
     deviceStatusList,
     charts,
     alerts,
     centerStatus,
-    dailySummary,
   } = useCenterPulse();
 
   const kpiCards = buildPulseKpiCards(kpis, charts);
+  const insights = buildPulseInsights(kpis, charts);
+  const patientFlowData = buildPatientFlowSeries(charts);
+
+  const systemAlertItems = alerts.map((a) => ({
+    id: a.id,
+    title: a.message,
+    severity: a.level === "error" ? "critical" : "warning",
+  }));
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto" dir="rtl">
       <PulseHeader centerStatus={centerStatus} />
 
       <section className="space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
-          {kpiCards.map((card) => (
-            <KpiCard key={card.key} {...card} isLoading={isLoading} />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <LiveStatTile
+            label="في الانتظار الآن"
+            value={kpis.waitingNow}
+            description={`متوسط الانتظار ${kpis.avgWaitingMinutes} دقيقة`}
+            icon={Clock}
+            tone="attention"
+            isLoading={isLoading}
+          />
+          <LiveStatTile
+            label="جلسات نشطة الآن"
+            value={kpis.activeSessionsNow}
+            description="مرضى داخل جلسات علاجية حالياً"
+            icon={Activity}
+            tone="cyan"
+            isLoading={isLoading}
+          />
+          <LiveStatTile
+            label="حالات متأخرة"
+            value={kpis.delayedCount}
+            description={
+              kpis._longWaitCount > 0
+                ? `${kpis._longWaitCount} منها تجاوز ٣٠ دقيقة`
+                : "لا توجد حالات تأخير طويل"
+            }
+            icon={AlarmClockOff}
+            tone="critical"
+            isLoading={isLoading}
+          />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {kpiCards.map(({ key, ...cardProps }) => (
+            <KpiCard key={key} {...cardProps} isLoading={isLoading} />
           ))}
         </div>
       </section>
 
-      <DailySummaryCard summary={dailySummary} />
+      <section className="space-y-4">
+        <AlertStack
+          items={systemAlertItems}
+          title="تنبيهات النظام"
+          icon={ShieldAlert}
+        />
+      </section>
+
+      <InsightBanner insights={insights} />
 
       <section className="space-y-4">
         <SectionHeader eyebrow="Live" title="العمليات الحية" icon={Activity} />
+        <WaitingQueuePanel queue={waitingQueue} />
+        <MissedPatientsPanel patients={missedPatientsList} />
+        <DoctorStatusCompact doctors={doctorStatusList} />
+      </section>
+
+      <section className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <DelayedCasesPanel cases={delayedCases} />
-          <WaitingQueuePanel queue={waitingQueue} />
+          <ComposedChartCard
+            title="تدفق المرضى اليوم"
+            subtitle="مواعيد · وصول · انتظار — حسب الساعة"
+            color="info"
+            isLoading={isLoading}
+            data={patientFlowData}
+            xKey="hour"
+            series={[
+              { key: "appointments", label: "مواعيد", type: "line" },
+              { key: "arrivals", label: "وصول", type: "line" },
+              { key: "waiting", label: "انتظار", type: "line" },
+            ]}
+          />
+          <BarChartCard
+            title="حالة مواعيد اليوم"
+            subtitle=""
+            icon={BarChart3}
+            isLoading={isLoading}
+            data={charts.appointmentsByStatusToday}
+            xKey="name"
+            series={[{ key: "value", label: "عدد المواعيد" }]}
+            colorByCategory
+          />
         </div>
-        <RoomStatusGrid rooms={roomStatusList} />
+      </section>
+
+      <section className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <DoctorStatusList doctors={doctorStatusList} />
+          <RoomStatusGrid rooms={roomStatusList} />
           <DeviceStatusGrid devices={deviceStatusList} />
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <SectionHeader
-          eyebrow="Today's Flow"
-          title="اتجاهات اليوم بالساعة"
-          icon={Clock3}
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <LineChartCard
-            title="المواعيد اليوم"
-            subtitle="حسب الساعة"
-            isLoading={isLoading}
-            height={180}
-            data={charts.appointmentsToday}
-            xKey="hour"
-            series={[{ key: "count", label: "مواعيد" }]}
-          />
-          <LineChartCard
-            title="وصول المرضى"
-            subtitle="حسب الساعة"
-            isLoading={isLoading}
-            height={180}
-            data={charts.arrivalsToday}
-            xKey="hour"
-            series={[{ key: "count", label: "وصول" }]}
-          />
-          <LineChartCard
-            title="طابور الانتظار"
-            subtitle="حسب الساعة"
-            isLoading={isLoading}
-            height={180}
-            data={charts.waitingQueueToday}
-            xKey="hour"
-            series={[{ key: "count", label: "منتظرون" }]}
-          />
-          <LineChartCard
-            title="عبء عمل الأطباء"
-            subtitle="حسب الساعة"
-            isLoading={isLoading}
-            height={180}
-            data={charts.doctorWorkloadToday}
-            xKey="hour"
-            series={[{ key: "count", label: "جلسات نشطة" }]}
-          />
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <SectionHeader
-          eyebrow="Growth"
-          title="النمو والاتجاهات العامة"
-          icon={TrendingUp}
-        />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <AreaChartCard
-            title="نمو المواعيد شهرياً"
-            subtitle="Appointment Growth"
-            icon={TrendingUp}
-            isLoading={isLoading}
-            data={charts.appointmentGrowth}
-            xKey="month"
-            series={[{ key: "count", label: "المواعيد" }]}
-          />
-          <AreaChartCard
-            title="نمو المرضى شهرياً"
-            subtitle="Patient Growth"
-            icon={TrendingUp}
-            isLoading={isLoading}
-            data={charts.patientGrowth}
-            xKey="month"
-            series={[{ key: "count", label: "مرضى جدد" }]}
-          />
         </div>
       </section>
 
@@ -146,20 +152,10 @@ export default function CenterPulsePage() {
           title="تحليلات إضافية"
           icon={BarChart3}
         />
-        {charts.peakHour && (
-          <p className="text-xs text-muted-foreground px-1">
-            أكثر ساعات العمل ازدحاماً تاريخياً:{" "}
-            <span className="font-black text-foreground">
-              {charts.peakHour.hour}
-            </span>{" "}
-            بواقع {charts.peakHour.count} موعد
-          </p>
-        )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <BarChartCard
             title="الخدمات الأكثر طلباً"
-            subtitle="Most Requested Services"
-            icon={LayoutGrid}
+            color="analytics"
             isLoading={isLoading}
             data={charts.topServices}
             xKey="name"
@@ -167,29 +163,13 @@ export default function CenterPulsePage() {
           />
           <BarChartCard
             title="عبء العمل حسب الطبيب"
-            subtitle="Doctor Workload"
-            icon={Activity}
+            color="analytics"
             isLoading={isLoading}
             data={charts.doctorWorkload}
             xKey="name"
             series={[{ key: "sessions", label: "مواعيد" }]}
           />
         </div>
-        <BarChartCard
-          title="حالة مواعيد اليوم"
-          subtitle="Completed vs Cancelled vs NoShow"
-          icon={BarChart3}
-          isLoading={isLoading}
-          data={charts.appointmentsByStatusToday}
-          xKey="name"
-          series={[{ key: "value", label: "عدد المواعيد" }]}
-          colorByCategory
-        />
-      </section>
-
-      <section className="space-y-4">
-        <SectionHeader eyebrow="Alerts" title="التنبيهات" icon={ShieldAlert} />
-        <SystemAlertsPanel alerts={alerts} />
       </section>
     </div>
   );

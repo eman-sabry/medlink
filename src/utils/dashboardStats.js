@@ -13,7 +13,6 @@ function toValidDate(raw) {
   return isNaN(date.getTime()) ? null : date;
 }
 
-// تجميع عدد العناصر حسب الشهر الفعلي الموجود في البيانات (لا يفترض نطاق زمني ثابت)
 export function groupCountByMonth(items, dateField) {
   const buckets = new Map();
   for (const item of items) {
@@ -30,7 +29,6 @@ export function groupCountByMonth(items, dateField) {
     });
 }
 
-// تجميع مجموع قيمة حقل معين حسب الشهر (مثل إجمالي الإيرادات شهرياً)
 export function groupSumByMonth(items, dateField, valueField) {
   const buckets = new Map();
   for (const item of items) {
@@ -48,7 +46,42 @@ export function groupSumByMonth(items, dateField, valueField) {
     });
 }
 
-// تجميع عدد العناصر حسب قيمة حقل (مثل الحالة أو معرف الخدمة)، مع إمكانية تحويل المفتاح لتسمية مقروءة
+export function groupSumByDay(items, dateField, valueField, days = 14, referenceDate = new Date()) {
+  const buckets = new Map();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(referenceDate);
+    d.setDate(d.getDate() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    buckets.set(key, 0);
+  }
+  for (const item of items) {
+    const date = toValidDate(item[dateField]);
+    if (!date) continue;
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    if (!buckets.has(key)) continue;
+    const value = Number(item[valueField]) || 0;
+    buckets.set(key, buckets.get(key) + value);
+  }
+  return [...buckets.entries()].map(([key, total]) => {
+    const [, month, day] = key.split("-").map(Number);
+    return { day: `${day} ${ARABIC_MONTHS[month - 1]}`, total };
+  });
+}
+
+export function groupSumByField(items, field, valueField, resolveLabel) {
+  const buckets = new Map();
+  for (const item of items) {
+    const key = item[field];
+    if (key === undefined || key === null || key === "") continue;
+    const value = Number(item[valueField]) || 0;
+    buckets.set(key, (buckets.get(key) ?? 0) + value);
+  }
+  return [...buckets.entries()].map(([key, value]) => ({
+    name: resolveLabel ? resolveLabel(key) : String(key),
+    value,
+  }));
+}
+
 export function groupCountByField(items, field, resolveLabel) {
   const buckets = new Map();
   for (const item of items) {
@@ -62,7 +95,6 @@ export function groupCountByField(items, field, resolveLabel) {
   }));
 }
 
-// تجميع عدد العناصر حسب يوم الأسبوع (الأحد إلى السبت)
 export function groupCountByWeekday(items, dateField) {
   const counts = new Array(7).fill(0);
   for (const item of items) {
@@ -83,8 +115,6 @@ export function isSameDay(isoString, referenceDate) {
   );
 }
 
-// تجميع عدد العناصر حسب ساعة اليوم (لعناصر يوم واحد فقط، مثل اتجاهات "اليوم" في نبض المركز)
-// hourRange بصيغة [من, إلى] شاملة، تُستخدم كنافذة عرض افتراضية لساعات عمل المركز حتى لا يظهر مخطط بـ24 عموداً فارغاً
 export function groupCountByHour(items, dateField, referenceDate, hourRange = [7, 19]) {
   const [startHour, endHour] = hourRange;
   const hours = [];
@@ -104,7 +134,6 @@ export function groupCountByHour(items, dateField, referenceDate, hourRange = [7
   }));
 }
 
-// يوجد الساعة الأكثر ازدحاماً عبر كل البيانات (وليس يوماً واحداً فقط)، لتحديد "ساعات الذروة"
 export function findPeakHour(items, dateField) {
   const counts = new Map();
   for (const item of items) {
@@ -119,8 +148,6 @@ export function findPeakHour(items, dateField) {
   return { hour: `${String(peakHour).padStart(2, "0")}:00`, count: peakCount };
 }
 
-// اتجاه آخر نقطتين في سلسلة شهرية (مثل الناتجة عن groupCountByMonth/groupSumByMonth)،
-// يُستخدم لعرض "% مقارنة بالشهر الماضي" في بطاقات المؤشرات دون حساب يدوي متكرر في كل هوك
 export function trendFromMonthlySeries(series, valueKey = "count") {
   if (!series || series.length < 2) return null;
   const current = series[series.length - 1][valueKey];
@@ -128,7 +155,6 @@ export function trendFromMonthlySeries(series, valueKey = "count") {
   return computeTrend(current, previous);
 }
 
-// نسبة التغير بين قيمتين (اليوم مقابل الأمس مثلاً)؛ يُعيد null عندما لا تتوفر مقارنة منطقية
 export function computeTrend(current, previous) {
   if (previous === 0) {
     if (current === 0) return null;
@@ -139,7 +165,38 @@ export function computeTrend(current, previous) {
   return { direction: percent > 0 ? "up" : "down", percent: Math.abs(percent) };
 }
 
-// متوسط المدة بالدقائق بين حقلي بداية ونهاية عبر مجموعة عناصر (يتجاهل القيم غير الصالحة أو السالبة)
+function monthSortKey(label) {
+  const [name, year] = label.split(" ");
+  const index = ARABIC_MONTHS.indexOf(name);
+  return `${year}-${String(index + 1).padStart(2, "0")}`;
+}
+
+export function mergeMonthlySeries(seriesA, keyA, seriesB, keyB, valueField = "count") {
+  const merged = new Map();
+  for (const item of seriesA) {
+    merged.set(item.month, { month: item.month, [keyA]: item[valueField] ?? 0 });
+  }
+  for (const item of seriesB) {
+    const existing = merged.get(item.month) ?? { month: item.month };
+    existing[keyB] = item[valueField] ?? 0;
+    merged.set(item.month, existing);
+  }
+  return [...merged.values()].sort((a, b) => monthSortKey(a.month).localeCompare(monthSortKey(b.month)));
+}
+
+export function mergeDailySeries(seriesA, keyA, seriesB, keyB, valueField = "total") {
+  const merged = new Map();
+  for (const item of seriesA) {
+    merged.set(item.day, { day: item.day, [keyA]: item[valueField] ?? 0 });
+  }
+  for (const item of seriesB) {
+    const existing = merged.get(item.day) ?? { day: item.day };
+    existing[keyB] = item[valueField] ?? 0;
+    merged.set(item.day, existing);
+  }
+  return [...merged.values()];
+}
+
 export function averageDurationMinutes(items, startField, endField) {
   const durations = [];
   for (const item of items) {

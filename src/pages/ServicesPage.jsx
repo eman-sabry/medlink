@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useServices } from "../hooks/useServices";
 import { ServiceCard } from "../components/ServiceCard";
 import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { ReusableForm } from "../components/ui/ReusableForm";
+import { SearchBar } from "../components/ui/SearchBar";
+import { StatusFilterDropdown } from "../components/ui/StatusFilterDropdown";
+import { ACTIVE_INACTIVE_FILTER_OPTIONS } from "../helpers/statusFilters";
 import {
   Stethoscope,
   Plus,
-  Search,
   Loader2,
   DollarSign,
   Clock,
@@ -25,6 +27,7 @@ export default function ServicesPage() {
   } = useServices();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [activeMenuId, setActiveMenuId] = useState(null);
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -80,13 +83,18 @@ export default function ServicesPage() {
     }
   };
 
-  const filteredServices = services.filter(
-    (s) =>
-      s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.category?.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredServices = useMemo(
+    () =>
+      services.filter((s) => {
+        const matchesSearch =
+          s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          s.category?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === "all" || s.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [services, searchQuery, statusFilter],
   );
 
-  // قائمة الفئات المتاحة في الدروب داون (يمكنك تعديلها أو إضافات فئات أخرى)
   const categoryOptions = [
     { label: "استشارات", value: "استشارات" },
     { label: "علاج طبيعي", value: "علاج طبيعي" },
@@ -149,7 +157,6 @@ export default function ServicesPage() {
       dir="rtl"
       onClick={() => setActiveMenuId(null)}
     >
-      {/* عنوان الصفحة */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <span className="text-xs text-muted-foreground font-bold">
@@ -172,19 +179,22 @@ export default function ServicesPage() {
         </button>
       </div>
 
-      {/* شريط البحث */}
-      <div className="bg-card p-3 rounded-3xl border border-border flex items-center gap-3">
-        <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
-        <input
-          type="text"
-          placeholder="بحث باسم الخدمة أو الفئة..."
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <SearchBar
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full h-10 px-2 rounded-2xl bg-muted/40 border border-border text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+          onChange={setSearchQuery}
+          placeholder="بحث باسم الخدمة أو الفئة..."
+          variant="boxed"
+          className="flex-1"
+        />
+        <StatusFilterDropdown
+          options={ACTIVE_INACTIVE_FILTER_OPTIONS}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          triggerClassName="w-full sm:w-44 h-12 px-4 text-xs"
         />
       </div>
 
-      {/* عرض الكروت باستخدام الكومبوننت المنفصل */}
       {isLoading ? (
         <div className="flex flex-col items-center justify-center p-16 space-y-3 bg-card rounded-3xl border border-border">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -211,7 +221,6 @@ export default function ServicesPage() {
         </div>
       )}
 
-      {/* مودال الفورم الموحد (إضافة وتعديل) */}
       {isFormModalOpen && (
         <ReusableForm
           title={editingService ? "تعديل الخدمة العلاجية" : "إضافة خدمة جديدة"}
@@ -231,7 +240,6 @@ export default function ServicesPage() {
         />
       )}
 
-      {/* مودال التأكيد بالحذف */}
       <ConfirmModal
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}

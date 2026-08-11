@@ -9,7 +9,6 @@ export function ReusableTable({
 }) {
   const [currentPage, setCurrentPage] = useState(1);
 
-  // حساب البيانات الخاصة بالصفحة الحالية
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentData = data.slice(indexOfFirstRow, indexOfLastRow);
@@ -58,7 +57,6 @@ export function ReusableTable({
         </table>
       </div>
 
-      {/* شريط التنقل بين الصفحات (Pagination) */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/20">
           <span className="text-xs text-muted-foreground font-medium">

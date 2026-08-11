@@ -1,15 +1,12 @@
 import { countBy } from "../utils/stats";
 
-// تنبيهات تشغيلية مشتركة (تُستخدم في لوحة المالك ونبض المركز) لتفادي تكرار نفس المنطق.
-// المعاملات الإضافية (delayedAppointments/longWaitCount/missedToday) اختيارية حتى لا تتأثر
-// لوحة المالك التي لا تمرّرها.
 export function buildOperationalAlerts({
   devices = [],
   maintenance = [],
-  invoices = [],
   delayedAppointments = [],
   longWaitCount = 0,
   missedToday = 0,
+  unpaidInvoicesCount = 0,
 }) {
   const alerts = [];
 
@@ -51,12 +48,11 @@ export function buildOperationalAlerts({
     });
   }
 
-  const overdueInvoices = countBy(invoices, (i) => i.status !== "Paid");
-  if (overdueInvoices > 0) {
+  if (unpaidInvoicesCount > 0) {
     alerts.push({
       id: "invoices",
       level: "warning",
-      message: `${overdueInvoices} فاتورة غير مسددة`,
+      message: `${unpaidInvoicesCount} فاتورة غير مسددة`,
     });
   }
 

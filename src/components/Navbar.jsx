@@ -19,7 +19,6 @@ export function Navbar({
   const initial = displayName.trim().charAt(0) || "م";
   return (
     <header className="flex h-20 w-full items-center justify-between px-4 lg:px-6 bg-transparent font-['Cairo',sans-serif]">
-      {/* الشعار */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5 lg:hidden">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md">
@@ -31,7 +30,6 @@ export function Navbar({
         </div>
       </div>
 
-      {/* شريط البحث */}
       <div className="flex-1 max-w-xl mx-6 hidden sm:block">
         <button
           onClick={onOpenSearch}
@@ -44,9 +42,7 @@ export function Navbar({
         </button>
       </div>
 
-      {/* الأزرار الجانبية */}
       <div className="flex items-center gap-3">
-        {/* زر الثيم */}
         <button
           onClick={onToggleDarkMode}
           className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/80 bg-card text-muted-foreground hover:bg-card hover:text-foreground transition-all cursor-pointer shadow-xs"
@@ -58,7 +54,6 @@ export function Navbar({
           )}
         </button>
 
-        {/* زر الإشعارات */}
         <button className="relative cursor-pointer flex h-11 w-11 items-center justify-center rounded-2xl border border-border/80 bg-card text-muted-foreground hover:bg-card shadow-xs">
           <Bell className="h-5 w-5 " />
           <span className="absolute top-3 right-3 h-2.5 w-2.5 rounded-full bg-destructive animate-pulse ring-2 ring-card bg-red-500"></span>
@@ -66,7 +61,6 @@ export function Navbar({
 
         <div className="h-7 w-[1px] bg-border/80 mx-1"></div>
 
-        {/* استخدام دروب داون المستخدم بكل سهولة */}
         <Dropdown
           align="left"
           trigger={

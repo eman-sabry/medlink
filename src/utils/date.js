@@ -25,6 +25,17 @@ export function formatDate(isoString, fallback = "4 أغسطس 2026") {
   }).format(date);
 }
 
+export function formatDurationSeconds(totalSeconds = 0) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 export function toDateInputValue(isoString) {
   const date = parseDate(isoString);
   if (!date) return null;
