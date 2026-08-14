@@ -118,14 +118,13 @@ export function usePatientFollowUp() {
         },
     });
 
-    const rawFollowUps = Array.isArray(followUpsQuery.data) ?
-        followUpsQuery.data :
-        followUpsQuery.data ?.follow_ups || [];
-
-    const patientsList = Array.isArray(patientsQuery.data) ? patientsQuery.data : [];
-    const staffList = Array.isArray(staffQuery.data) ? staffQuery.data : [];
-
     const missedPatients = useMemo(() => {
+        const rawFollowUps = Array.isArray(followUpsQuery.data) ?
+            followUpsQuery.data :
+            followUpsQuery.data?.follow_ups || [];
+        const patientsList = Array.isArray(patientsQuery.data) ? patientsQuery.data : [];
+        const staffList = Array.isArray(staffQuery.data) ? staffQuery.data : [];
+
         return rawFollowUps.map((item) => {
             const matchedPatient = patientsList.find((p) => p.id === item.patient_id);
             const matchedDoctor = staffList.find((s) => s.id === item.doctor_id);
@@ -133,7 +132,6 @@ export function usePatientFollowUp() {
 
             const itemDateStr = item.updated_at || item.created_at || new Date().toISOString();
             const itemDate = new Date(itemDateStr);
-          
 
             const currentStatus = item.follow_up_status || item.status || "بحاجة اتصال";
 
@@ -141,10 +139,10 @@ export function usePatientFollowUp() {
                 id: item.id,
                 patientId: item.patient_id,
                 doctorId: item.doctor_id,
-                patientName: matchedPatient ?.full_name || item.patient_name || "مريض غير معروف",
-                patientPhone: matchedPatient ?.phone || item.patient_phone || "01000000000",
-                doctorName: matchedDoctor ?.full_name || "د. غير محدد",
-                followUpStaff: matchedAssignee ?.full_name || "مسؤول المتابعة",
+                patientName: matchedPatient?.full_name || item.patient_name || "مريض غير معروف",
+                patientPhone: matchedPatient?.phone || item.patient_phone || "01000000000",
+                doctorName: matchedDoctor?.full_name || "د. غير محدد",
+                followUpStaff: matchedAssignee?.full_name || "مسؤول المتابعة",
                 lastUpdate: !isNaN(itemDate.getTime()) ? itemDate.toISOString().split("T")[0] : "—",
                 notes: item.notes && item.notes.trim() !== "" ? item.notes : "—",
                 status: currentStatus,
@@ -152,7 +150,7 @@ export function usePatientFollowUp() {
                 updatedAt: item.updated_at || "—",
             };
         });
-    }, [rawFollowUps, patientsList, staffList]);
+    }, [followUpsQuery.data, patientsQuery.data, staffQuery.data]);
 
     const stats = useMemo(() => {
         const counts = {

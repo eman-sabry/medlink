@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../api/client";
 import { useMedicalDevices } from "../hooks/useMedicalDevices";
@@ -36,7 +37,8 @@ export default function MedicalDevicesPage() {
   );
   const deviceFormFields = useMemo(() => getDeviceFormFields(roomOptions), [roomOptions]);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") || "");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);

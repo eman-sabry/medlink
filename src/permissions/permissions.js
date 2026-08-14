@@ -22,6 +22,8 @@ export const PERMISSIONS = {
     "rooms:view",
     "rooms:manage",
     "packages:assign",
+    "archive:view",
+    "archive:restore",
     "profile:view",
     "profile:edit",
   ],

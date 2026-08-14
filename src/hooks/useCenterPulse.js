@@ -388,7 +388,7 @@ const missedPatientsList = useMemo(() => {
       patientName: a.patient_name ?? "مريض غير معروف",
       doctorName: a.doctor_name ?? staffById.get(a.doctor_id)?.full_name ?? "غير محدد",
       phone: a.patient_phone ?? "", 
-      timeLabel: new Date(a.starts_at).toLocaleTimeString("ar-EG", {
+      timeLabel: new Date(a.starts_at).toLocaleTimeString("ar-EG-u-nu-latn", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true

@@ -33,8 +33,8 @@ function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
   const phoneNo = patient.phone || "201000000000";
   const whatsappUrl = `https://wa.me/${phoneNo}?text=${encodeURIComponent(`مرحباً ${patient.full_name}، نود التواصل معك بخصوص مركز MedLink OS.`)}`;
 
-  const handleConfirmDelete = () => {
-    onDelete(patient.id);
+  const handleConfirmDelete = (deleteReason) => {
+    onDelete({ id: patient.id, deleteReason, patient });
     setIsDeleteOpen(false);
   };
 
@@ -145,6 +145,8 @@ function PatientCardImpl({ patient, onEdit, onDelete, onViewDetails }) {
 
       <DeletePatientModal
         isOpen={isDeleteOpen}
+        patientName={patient.full_name}
+        patientFileNo={patient.file_no}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleConfirmDelete}
       />

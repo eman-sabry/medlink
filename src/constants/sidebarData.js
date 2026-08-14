@@ -12,7 +12,8 @@ import {
     CreditCard,
     Package,
     ReceiptText,
-    Banknote
+    Banknote,
+    Archive
 } from "lucide-react";
 
 export const SIDEBAR_SECTIONS = [{
@@ -107,5 +108,13 @@ export const SIDEBAR_SECTIONS = [{
                 icon: Package
             },
         ]
+    },
+    {
+        title: "النظام",
+        items: [{
+            label: "سلة المحذوفات",
+            to: "/archive",
+            icon: Archive,
+        }]
     }
 ];

@@ -7,6 +7,7 @@ import { BarChartCard } from "../../components/charts/BarChartCard";
 import { AreaChartCard } from "../../components/charts/AreaChartCard";
 import { ComposedChartCard } from "../../components/charts/ComposedChartCard";
 import { PieChartCard } from "../../components/charts/PieChartCard";
+import { RevenueVsExpensesChart } from "../../components/dashboard/RevenueVsExpensesChart";
 import { RecentActivityList } from "../../components/dashboard/RecentActivityList";
 import { AppointmentListPanel } from "../../components/dashboard/AppointmentListPanel";
 import { TopDoctorsList } from "../../components/dashboard/TopDoctorsList";
@@ -26,7 +27,6 @@ import {
   BarChart3,
   ActivitySquare,
   LayoutDashboard,
-  Scale,
   Wrench,
 } from "lucide-react";
 
@@ -34,6 +34,7 @@ export default function OwnerDashboardPage() {
   const { user } = useAuth();
   const {
     isLoading,
+    isError,
     stats,
     charts,
     recentActivities,
@@ -127,28 +128,11 @@ export default function OwnerDashboardPage() {
 
       <section className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ComposedChartCard
-            title="الإيرادات مقابل المصروفات"
-            subtitle="Revenue vs Expenses — شهرياً"
-            icon={Scale}
-            color="emerald"
+          <RevenueVsExpensesChart
+            revenueVsExpensesSeries={charts.revenueVsExpensesSeries}
+            fallbackData={charts.revenueVsExpenses}
             isLoading={isLoading}
-            data={charts.revenueVsExpenses}
-            xKey="month"
-            series={[
-              {
-                key: "revenue",
-                label: "الإيرادات",
-                type: "line",
-                color: "#10b981",
-              },
-              {
-                key: "expenses",
-                label: "المصروفات",
-                type: "line",
-                color: "#f43f5e",
-              },
-            ]}
+            isError={isError}
           />
           <PieChartCard
             title="المصروفات حسب التصنيف"

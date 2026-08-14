@@ -19,9 +19,11 @@ export const ROUTE_PERMISSIONS = {
   "/expenses": [ROLES.OWNER],
   "/rooms": [ROLES.OWNER, ROLES.SECRETARY],
   "/profile": ALL_ROLES,
+  "/notifications": ALL_ROLES,
   "/pulse": [ROLES.OWNER],
   "/team": [ROLES.OWNER],
   "/attendance": [ROLES.OWNER],
+  "/archive": [ROLES.OWNER, ROLES.SECRETARY],
 };
 
 export function canAccessRoute(role, path) {

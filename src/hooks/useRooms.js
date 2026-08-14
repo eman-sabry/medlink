@@ -281,9 +281,24 @@ export function useRooms() {
     });
 
     const deleteRoomMutation = useMutation({
-        mutationFn: async (id) => {
-            return await apiRequest(`/rooms/${id}`, {
-                method: "DELETE",
+        mutationFn: async (payload) => {
+            const id = typeof payload === "object" && payload !== null ? payload.id : payload;
+            const deleteReason = typeof payload === "object" && payload !== null ? payload.deleteReason : "طلب حذف الغرفة";
+            const roomData = typeof payload === "object" && payload !== null ? payload.room : (roomsQuery.data ?? []).find((r) => r.id === id);
+
+            return await apiRequest("/archive/move", {
+                method: "POST",
+                body: JSON.stringify({
+                    entity_type: "room",
+                    entity_id: String(id),
+                    delete_reason: deleteReason || "طلب حذف الغرفة",
+                    archived_by: user?.full_name || "المسؤول",
+                    archived_by_user_id: user?.id || null,
+                    title: roomData?.name || "غرفة علاج",
+                    subtitle: roomData?.type ? `نوع: ${roomData.type}` : "غرفة",
+                    secondary_info: roomData?.status ? `الحالة: ${roomData.status}` : "متاحة",
+                    original_data: roomData,
+                }),
             });
         },
         onSuccess: () => {
@@ -296,9 +311,12 @@ export function useRooms() {
             queryClient.invalidateQueries({
                 queryKey: ["devices"]
             });
-            toast.success("تم حذف الغرفة بنجاح");
+            queryClient.invalidateQueries({
+                queryKey: ["archived_items"]
+            });
+            toast.success("تم نقل الغرفة إلى سلة المحذوفات بنجاح");
         },
-        onError: () => toast.error("فشل حذف الغرفة"),
+        onError: () => toast.error("فشل نقل الغرفة إلى سلة المحذوفات"),
     });
 
     const addBedMutation = useMutation({

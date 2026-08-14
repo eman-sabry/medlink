@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CalendarDays, Plus } from "lucide-react";
 import { useAppointments } from "../hooks/useAppointments";
 import { AppointmentModal } from "../components/AppointmentModal";
@@ -28,7 +29,8 @@ export default function AppointmentsPage() {
     isDeleting,
   } = useAppointments();
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get("search") || "");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
 
@@ -40,6 +42,15 @@ export default function AppointmentsPage() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [appointmentToDelete, setAppointmentToDelete] = useState(null);
+
+  const targetAppId = searchParams.get("appointmentId");
+  const activeDetailsApp = useMemo(() => {
+    if (selectedDetailsApp) return selectedDetailsApp;
+    if (targetAppId && appointments.length > 0) {
+      return appointments.find((a) => String(a.id) === String(targetAppId)) || null;
+    }
+    return null;
+  }, [selectedDetailsApp, targetAppId, appointments]);
 
   const filteredAppointments = useMemo(
     () => filterAppointments(appointments, { searchTerm, statusFilter, dateFilter }),
@@ -92,10 +103,14 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (deleteReason) => {
     if (appointmentToDelete) {
       try {
-        await deleteAppointment(appointmentToDelete);
+        await deleteAppointment({
+          id: appointmentToDelete.id,
+          deleteReason,
+          appointment: appointmentToDelete,
+        });
       } catch (err) {
         console.error("Failed deleting appointment:", err);
       } finally {
@@ -227,8 +242,8 @@ export default function AppointmentsPage() {
       />
 
       <AppointmentDetailsModal
-        isOpen={isDetailsModalOpen}
-        appointment={selectedDetailsApp}
+        isOpen={isDetailsModalOpen || Boolean(targetAppId && activeDetailsApp)}
+        appointment={activeDetailsApp}
         onClose={() => {
           setIsDetailsModalOpen(false);
           setSelectedDetailsApp(null);
@@ -237,6 +252,7 @@ export default function AppointmentsPage() {
 
       <DeleteAppointmentModal
         isOpen={isDeleteModalOpen}
+        appointment={appointmentToDelete}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}

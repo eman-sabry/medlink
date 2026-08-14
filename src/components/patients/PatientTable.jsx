@@ -12,7 +12,7 @@ import { ReusableTable } from "../ui/ReusableTable";
 import { PermissionGuard } from "../../guards/PermissionGuard";
 
 export function PatientTable({ patients, onEdit, onDelete, onViewDetails }) {
-  const [deleteId, setDeleteId] = useState(null);
+  const [patientToDelete, setPatientToDelete] = useState(null);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -27,10 +27,10 @@ export function PatientTable({ patients, onEdit, onDelete, onViewDetails }) {
     }
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteId) {
-      onDelete(deleteId);
-      setDeleteId(null);
+  const handleConfirmDelete = (deleteReason) => {
+    if (patientToDelete) {
+      onDelete({ id: patientToDelete.id, deleteReason, patient: patientToDelete });
+      setPatientToDelete(null);
     }
   };
 
@@ -146,7 +146,7 @@ export function PatientTable({ patients, onEdit, onDelete, onViewDetails }) {
             <PermissionGuard permission="patients:delete">
               <button
                 type="button"
-                onClick={() => setDeleteId(patient.id)}
+                onClick={() => setPatientToDelete(patient)}
                 className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-100 text-red-500 hover:bg-destructive/15 hover:text-destructive transition-all cursor-pointer"
                 title="حذف"
               >
@@ -172,8 +172,10 @@ export function PatientTable({ patients, onEdit, onDelete, onViewDetails }) {
       </div>
 
       <DeletePatientModal
-        isOpen={Boolean(deleteId)}
-        onClose={() => setDeleteId(null)}
+        isOpen={Boolean(patientToDelete)}
+        patientName={patientToDelete?.full_name}
+        patientFileNo={patientToDelete?.file_no}
+        onClose={() => setPatientToDelete(null)}
         onConfirm={handleConfirmDelete}
       />
     </>

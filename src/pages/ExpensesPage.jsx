@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Wallet, Archive, ArchiveRestore, Printer } from "lucide-react";
 import { apiRequest } from "../api/client";
@@ -56,10 +57,14 @@ const DEFAULT_FILTERS = {
 const EMPTY_ARRAY = [];
 
 export default function ExpensesPage() {
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState(() => ({
+    ...DEFAULT_FILTERS,
+    search: searchParams.get("search") || "",
+  }));
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
-  const [viewingExpenseId, setViewingExpenseId] = useState(null);
+  const [viewingExpenseId, setViewingExpenseId] = useState(() => searchParams.get("expenseId") || null);
   const [archivingExpense, setArchivingExpense] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [printExpenseId, setPrintExpenseId] = useState(null);

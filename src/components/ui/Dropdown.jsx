@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 
 export function Dropdown({
@@ -14,6 +14,11 @@ export function Dropdown({
   const isControlled = externalIsOpen !== undefined;
   const isOpen = isControlled ? externalIsOpen : internalIsOpen;
 
+  const handleClose = useCallback(() => {
+    if (onOpenChange) onOpenChange(false);
+    if (!isControlled) setInternalIsOpen(false);
+  }, [onOpenChange, isControlled]);
+
   const setIsOpen = (value) => {
     if (onOpenChange) onOpenChange(value);
     if (!isControlled) setInternalIsOpen(value);
@@ -22,13 +27,13 @@ export function Dropdown({
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
+        handleClose();
       }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onOpenChange]);
+  }, [handleClose]);
 
   const alignmentClass = align === "right" ? "right-0" : "left-0";
 

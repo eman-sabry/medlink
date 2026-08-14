@@ -9,9 +9,16 @@ import {
 import {
     toast
 } from "../utils/toast";
+import { createNotification } from "../services/notificationService";
+import { NOTIFICATION_TYPES, NOTIFICATION_SEVERITIES } from "../constants/notificationTypes";
+import { ROLES } from "../permissions/roles";
+
+import { useAuth } from "./useAuth";
+import { logActivity } from "../helpers/activityLog.helpers";
 
 export function usePatients() {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
 
     const patientsQuery = useQuery({
         queryKey: ["patients"],
@@ -30,10 +37,27 @@ export function usePatients() {
                 body: JSON.stringify(newPatient),
             }),
 
-        onSuccess: () => {
+        onSuccess: (created) => {
             queryClient.invalidateQueries({
                 queryKey: ["patients"],
             });
+
+            if (created) {
+                createNotification({
+                    type: NOTIFICATION_TYPES.PATIENT_REGISTERED,
+                    title: "تسجيل مريض جديد",
+                    message: `تم فتح ملف جديد للمريض ${created.full_name || "جديد"} برقم ملف ${created.file_no || "—"}`,
+                    severity: NOTIFICATION_SEVERITIES.INFO,
+                    entityType: "patient",
+                    entityId: created.id,
+                    targetRoles: [ROLES.OWNER, ROLES.SECRETARY],
+                    metadata: {
+                        patient_id: created.id,
+                        file_no: created.file_no,
+                    },
+                });
+            }
+
             toast.success("تمت إضافة المريض بنجاح");
         },
         onError: () => toast.error("فشلت إضافة المريض"),
@@ -59,18 +83,43 @@ export function usePatients() {
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (id) =>
-            apiRequest(`/patients/${id}`, {
-                method: "DELETE",
-            }),
+        mutationFn: async (payload) => {
+            const id = typeof payload === "object" && payload !== null ? payload.id : payload;
+            const deleteReason = typeof payload === "object" && payload !== null ? payload.deleteReason : "طلب حذف ملف المريض";
+            const patientData = typeof payload === "object" && payload !== null ? payload.patient : null;
 
-        onSuccess: () => {
+            return await apiRequest("/archive/move", {
+                method: "POST",
+                body: JSON.stringify({
+                    entity_type: "patient",
+                    entity_id: String(id),
+                    delete_reason: deleteReason || "طلب حذف ملف المريض",
+                    archived_by: user?.full_name || "المسؤول",
+                    archived_by_user_id: user?.id || null,
+                    original_data: patientData,
+                }),
+            });
+        },
+
+        onSuccess: (archivedRecord, variables) => {
             queryClient.invalidateQueries({
                 queryKey: ["patients"],
             });
-            toast.success("تم حذف المريض بنجاح");
+            queryClient.invalidateQueries({
+                queryKey: ["archived_items"],
+            });
+
+            logActivity({
+                action: "PATIENT_ARCHIVED",
+                actorUserId: user?.id,
+                entityType: "patient",
+                entityId: typeof variables === "object" ? variables.id : variables,
+                details: `نقل ملف المريض إلى سلة المحذوفات: ${archivedRecord?.title || ""}`,
+            });
+
+            toast.success("تم نقل ملف المريض إلى سلة المحذوفات بنجاح");
         },
-        onError: () => toast.error("فشل حذف المريض"),
+        onError: () => toast.error("فشل نقل المريض إلى سلة المحذوفات"),
     });
 
     return {

@@ -99,18 +99,34 @@ export function useMedicalDevices() {
     });
 
     const deleteDeviceMutation = useMutation({
-        mutationFn: async (id) => {
-            return await apiRequest(`/devices/${id}`, {
-                method: "DELETE",
+        mutationFn: async (payload) => {
+            const id = typeof payload === "object" && payload !== null ? payload.id : payload;
+            const deleteReason = typeof payload === "object" && payload !== null ? payload.deleteReason : "طلب حذف الجهاز";
+            const devData = typeof payload === "object" && payload !== null ? payload.device : (devicesQuery.data ?? []).find((d) => d.id === id);
+
+            return await apiRequest("/archive/move", {
+                method: "POST",
+                body: JSON.stringify({
+                    entity_type: "device",
+                    entity_id: String(id),
+                    delete_reason: deleteReason || "طلب حذف الجهاز",
+                    title: devData?.name || "جهاز طبي",
+                    subtitle: devData?.model_number ? `طراز: ${devData.model_number}` : "جهاز",
+                    secondary_info: devData?.status ? `الحالة: ${devData.status}` : "متاح",
+                    original_data: devData,
+                }),
             });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({
                 queryKey: ["devices"]
             });
-            toast.success("تم حذف الجهاز بنجاح");
+            queryClient.invalidateQueries({
+                queryKey: ["archived_items"]
+            });
+            toast.success("تم نقل الجهاز إلى سلة المحذوفات بنجاح");
         },
-        onError: () => toast.error("فشل حذف الجهاز"),
+        onError: () => toast.error("فشل نقل الجهاز إلى سلة المحذوفات"),
     });
 
     return {

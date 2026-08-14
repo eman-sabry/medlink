@@ -161,7 +161,7 @@ export default function PackageTemplatesPage() {
               إيراد الباقات
             </span>
             <span className="text-2xl font-bold text-foreground mt-1 block font-mono">
-              {packageStats.revenue.toLocaleString("ar-EG")} <span className="text-xs font-normal">ج.م</span>
+              {packageStats.revenue.toLocaleString("en-US")} <span className="text-xs font-normal">ج.م</span>
             </span>
           </div>
           <div className="p-3 rounded-2xl bg-primary/10 text-primary">

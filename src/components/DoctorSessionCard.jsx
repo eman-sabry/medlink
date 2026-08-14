@@ -41,7 +41,7 @@ function formatSessionDate(dateString) {
   if (!dateString) return "—";
   const dateObj = new Date(dateString);
   if (isNaN(dateObj.getTime())) return dateString;
-  return dateObj.toLocaleDateString("ar-EG", { weekday: "short", month: "numeric", day: "numeric" });
+  return dateObj.toLocaleDateString("ar-EG-u-nu-latn", { weekday: "short", month: "numeric", day: "numeric" });
 }
 
 function DoctorSessionCardImpl({
