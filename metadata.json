@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix medlink",
+  "description": "Imported from GitHub: eman-sabry/medlink",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

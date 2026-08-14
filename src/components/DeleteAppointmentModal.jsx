@@ -1,21 +1,20 @@
-import { ConfirmModal } from "./ui/ConfirmModal"; 
+import { MoveToArchiveModal } from "./archive/MoveToArchiveModal";
 
 export function DeleteAppointmentModal({
   isOpen,
   onClose,
   onConfirm,
-  isDeleting,
+  appointment,
+  isDeleting = false,
 }) {
   return (
-    <ConfirmModal
+    <MoveToArchiveModal
       isOpen={isOpen}
       onClose={onClose}
-      onConfirm={onConfirm}
-      title="حذف الموعد"
-      description="هل أنت متأكد من رغبتك في حذف هذا الموعد؟ لا يمكن التراجع عن هذا الإجراء بعد تأكيده."
-      confirmText="تأكيد الحذف"
-      cancelText="تراجع"
-      variant="destructive"
+      onConfirm={(reason) => onConfirm(reason)}
+      entityType="appointment"
+      entityName={appointment?.patient_name ? `موعد المريض: ${appointment.patient_name}` : "موعد عيادة"}
+      entityIdentifier={appointment ? `${appointment.date || ""} ${appointment.time || ""}` : ""}
       isLoading={isDeleting}
     />
   );

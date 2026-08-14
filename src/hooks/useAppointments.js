@@ -19,6 +19,9 @@ import { releaseBedAndRoom } from "./useRooms";
 import { logActivity, ACTIVITY_ACTIONS } from "../helpers/activityLog.helpers";
 import { isStaffAvailableForAssignment } from "../helpers/team.helpers";
 import { useAuth } from "./useAuth";
+import { createNotification } from "../services/notificationService";
+import { NOTIFICATION_TYPES, NOTIFICATION_SEVERITIES } from "../constants/notificationTypes";
+import { ROLES } from "../permissions/roles";
 
 const EMPTY_ARRAY = [];
 
@@ -70,10 +73,31 @@ export function useAppointments() {
                 body: JSON.stringify(newAppointment),
             }),
 
-        onSuccess: () => {
+        onSuccess: (created) => {
             queryClient.invalidateQueries({
                 queryKey: ["appointments"],
             });
+            const patient = (patientsQuery.data ?? []).find((p) => p.id === created?.patient_id);
+            const doctor = (staffQuery.data ?? []).find((s) => s.id === created?.doctor_id);
+            const patientName = patient?.full_name || created?.patient_name || "مريض";
+            const doctorName = doctor?.full_name || created?.doctor_name || "طبيب";
+
+            createNotification({
+                type: NOTIFICATION_TYPES.APPOINTMENT_CREATED,
+                title: "حجز موعد جديد",
+                message: `تم حجز موعد جديد للمريض ${patientName} مع ${doctorName}`,
+                severity: NOTIFICATION_SEVERITIES.INFO,
+                entityType: "appointment",
+                entityId: created?.id,
+                targetRoles: [ROLES.OWNER, ROLES.SECRETARY, ROLES.DOCTOR],
+                doctorStaffId: created?.doctor_id,
+                metadata: {
+                    appointment_id: created?.id,
+                    patient_id: created?.patient_id,
+                    starts_at: created?.starts_at,
+                },
+            });
+
             toast.success("تم حجز الموعد بنجاح");
         },
         onError: () => toast.error("فشل حجز الموعد"),
@@ -115,17 +139,58 @@ export function useAppointments() {
             return result;
         },
 
-        onSuccess: (_, variables) => {
+        onSuccess: (updated, variables) => {
             queryClient.invalidateQueries({
                 queryKey: ["appointments"],
             });
-            if (variables.data ?.status === "Cancelled") {
+            if (variables.data?.status === "Cancelled") {
                 queryClient.invalidateQueries({ queryKey: ["treatment_sessions"] });
                 queryClient.invalidateQueries({ queryKey: ["rooms"] });
                 queryClient.invalidateQueries({ queryKey: ["treatment_beds"] });
             }
+
+            const patient = (patientsQuery.data ?? []).find((p) => p.id === updated?.patient_id);
+            const doctor = (staffQuery.data ?? []).find((s) => s.id === updated?.doctor_id);
+            const patientName = patient?.full_name || updated?.patient_name || "مريض";
+            const doctorName = doctor?.full_name || updated?.doctor_name || "طبيب";
+
+            if (variables.data?.status === "Cancelled") {
+                createNotification({
+                    type: NOTIFICATION_TYPES.APPOINTMENT_CANCELLED,
+                    title: "إلغاء موعد",
+                    message: `تم إلغاء موعد المريض ${patientName} مع ${doctorName}`,
+                    severity: NOTIFICATION_SEVERITIES.WARNING,
+                    entityType: "appointment",
+                    entityId: variables.id,
+                    targetRoles: [ROLES.OWNER, ROLES.SECRETARY, ROLES.DOCTOR],
+                    doctorStaffId: updated?.doctor_id,
+                });
+            } else if (variables.data?.status === "Waiting") {
+                createNotification({
+                    type: NOTIFICATION_TYPES.PATIENT_ARRIVED,
+                    title: "وصول مريض إلى العيادة",
+                    message: `وصل المريض ${patientName} ومستعد للبدء مع ${doctorName}`,
+                    severity: NOTIFICATION_SEVERITIES.INFO,
+                    entityType: "patient",
+                    entityId: updated?.patient_id,
+                    targetRoles: [ROLES.OWNER, ROLES.SECRETARY, ROLES.DOCTOR],
+                    doctorStaffId: updated?.doctor_id,
+                });
+            } else {
+                createNotification({
+                    type: NOTIFICATION_TYPES.APPOINTMENT_UPDATED,
+                    title: "تحديث بيانات الموعد",
+                    message: `تم تحديث موعد المريض ${patientName}`,
+                    severity: NOTIFICATION_SEVERITIES.INFO,
+                    entityType: "appointment",
+                    entityId: variables.id,
+                    targetRoles: [ROLES.OWNER, ROLES.SECRETARY, ROLES.DOCTOR],
+                    doctorStaffId: updated?.doctor_id,
+                });
+            }
+
             toast.success(
-                variables.data ?.status === "Cancelled" ?
+                variables.data?.status === "Cancelled" ?
                 "تم إلغاء الموعد" :
                 "تم تحديث الموعد بنجاح"
             );
@@ -134,18 +199,43 @@ export function useAppointments() {
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (id) =>
-            apiRequest(`/appointments/${id}`, {
-                method: "DELETE",
-            }),
+        mutationFn: async (payload) => {
+            const id = typeof payload === "object" && payload !== null ? payload.id : payload;
+            const deleteReason = typeof payload === "object" && payload !== null ? payload.deleteReason : "إلغاء وحذف الموعد";
+            const appointmentData = typeof payload === "object" && payload !== null ? payload.appointment : null;
 
-        onSuccess: () => {
+            return await apiRequest("/archive/move", {
+                method: "POST",
+                body: JSON.stringify({
+                    entity_type: "appointment",
+                    entity_id: String(id),
+                    delete_reason: deleteReason || "إلغاء وحذف الموعد",
+                    archived_by: user?.full_name || "المسؤول",
+                    archived_by_user_id: user?.id || null,
+                    original_data: appointmentData,
+                }),
+            });
+        },
+
+        onSuccess: (archivedRecord, variables) => {
             queryClient.invalidateQueries({
                 queryKey: ["appointments"],
             });
-            toast.success("تم حذف الموعد بنجاح");
+            queryClient.invalidateQueries({
+                queryKey: ["archived_items"],
+            });
+
+            logActivity({
+                action: "APPOINTMENT_ARCHIVED",
+                actorUserId: user?.id,
+                entityType: "appointment",
+                entityId: typeof variables === "object" ? variables.id : variables,
+                details: `نقل الموعد إلى سلة المحذوفات: ${archivedRecord?.title || ""}`,
+            });
+
+            toast.success("تم نقل الموعد إلى سلة المحذوفات بنجاح");
         },
-        onError: () => toast.error("فشل حذف الموعد"),
+        onError: () => toast.error("فشل نقل الموعد إلى سلة المحذوفات"),
     });
 
     const rawAppointments = appointmentsQuery.data ?? EMPTY_ARRAY;

@@ -9,6 +9,16 @@ export function roundMoney(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
+export function formatCurrency(amount) {
+  const num = Number(amount) || 0;
+  return `${num.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ج.م`;
+}
+
+export function formatNumber(amount) {
+  const num = Number(amount) || 0;
+  return num.toLocaleString("en-US");
+}
+
 export function calculateLineTotal({ quantity = 1, unit_price = 0, discount_amount = 0 }) {
   return roundMoney(quantity * unit_price - discount_amount);
 }

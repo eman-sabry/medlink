@@ -6,6 +6,9 @@ import { generateInvoiceNumber } from "../utils/billing";
 import { logActivity, ACTIVITY_ACTIONS } from "../helpers/activityLog.helpers";
 import { useAuth } from "./useAuth";
 import { hasPermission } from "../permissions/permissions";
+import { createNotification } from "../services/notificationService";
+import { NOTIFICATION_TYPES, NOTIFICATION_SEVERITIES } from "../constants/notificationTypes";
+import { ROLES } from "../permissions/roles";
 
 export const DUPLICATE_INVOICE_ERROR = "DUPLICATE_INVOICE";
 
@@ -97,9 +100,27 @@ export function useInvoices() {
 
       return createdInvoice;
     },
-    onSuccess: () => {
+    onSuccess: (createdInvoice) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice_items"] });
+
+      if (createdInvoice) {
+        createNotification({
+          type: NOTIFICATION_TYPES.INVOICE_CREATED,
+          title: "إصدار فاتورة جديدة",
+          message: `تم إصدار فاتورة برقم ${createdInvoice.invoice_no || ""} بمبلغ ${createdInvoice.total_amount ?? 0} ج.م`,
+          severity: NOTIFICATION_SEVERITIES.INFO,
+          entityType: "invoice",
+          entityId: createdInvoice.id,
+          targetRoles: [ROLES.OWNER, ROLES.SECRETARY],
+          metadata: {
+            invoice_no: createdInvoice.invoice_no,
+            patient_id: createdInvoice.patient_id,
+            total_amount: createdInvoice.total_amount,
+          },
+        });
+      }
+
       toast.success("تم إنشاء الفاتورة بنجاح");
     },
     onError: (error) => {
@@ -146,57 +167,58 @@ export function useInvoices() {
   });
 
   const deleteInvoiceMutation = useMutation({
-    mutationFn: async (id) => {
-      const [items, payments] = await Promise.all([
-        apiRequest(`/invoice_items?invoice_id=${id}`),
-        apiRequest(`/payments?invoice_id=${id}`),
-      ]);
-      await Promise.all(items.map((item) => apiRequest(`/invoice_items/${item.id}`, { method: "DELETE" })));
-      await Promise.all(payments.map((p) => apiRequest(`/payments/${p.id}`, { method: "DELETE" })));
-      return apiRequest(`/invoices/${id}`, { method: "DELETE" });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
-      queryClient.invalidateQueries({ queryKey: ["invoice_items"] });
-      queryClient.invalidateQueries({ queryKey: ["payments"] });
-      toast.success("تم حذف الفاتورة بنجاح");
-    },
-    onError: () => toast.error("فشل حذف الفاتورة"),
-  });
+    mutationFn: async (payload) => {
+      const id = typeof payload === "object" && payload !== null ? payload.id : payload;
+      const deleteReason = typeof payload === "object" && payload !== null ? payload.deleteReason : "طلب حذف الفاتورة";
+      const invoiceData = typeof payload === "object" && payload !== null ? payload.invoice : (invoicesQuery.data ?? []).find((i) => i.id === id);
 
-  const archiveInvoiceMutation = useMutation({
-    mutationFn: async (invoice) =>
-      apiRequest("/archived_items", {
+      return await apiRequest("/archive/move", {
         method: "POST",
         body: JSON.stringify({
           entity_type: "invoice",
-          entity_id: invoice.id,
-          archived_by_user_id: user?.id ?? null,
-          archived_at: new Date().toISOString(),
+          entity_id: String(id),
+          delete_reason: deleteReason || "طلب حذف الفاتورة",
+          archived_by: user?.full_name || "المسؤول",
+          archived_by_user_id: user?.id || null,
+          title: invoiceData?.patient_name ? `فاتورة مريض: ${invoiceData.patient_name}` : `فاتورة ${invoiceData?.invoice_no || ""}`,
+          subtitle: invoiceData?.invoice_no ? `رقم: ${invoiceData.invoice_no}` : `ID: ${id}`,
+          secondary_info: `${Number(invoiceData?.total_amount || 0).toLocaleString("en-US")} ج.م`,
+          original_data: invoiceData,
         }),
-      }),
-    onSuccess: (_, invoice) => {
+      });
+    },
+    onSuccess: (archivedRecord, variables) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice_items"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["archived_items"] });
+
+      const id = typeof variables === "object" ? variables.id : variables;
       logActivity({
         action: ACTIVITY_ACTIONS.INVOICE_ARCHIVED,
         actorUserId: user?.id,
-        patientId: invoice.patient_id,
         entityType: "invoice",
-        entityId: invoice.id,
+        entityId: id,
+        details: `نقل الفاتورة إلى سلة المحذوفات: ${archivedRecord?.title || id}`,
       });
-      toast.success("تم أرشفة الفاتورة بنجاح");
+      toast.success("تم نقل الفاتورة إلى سلة المحذوفات بنجاح");
     },
-    onError: () => toast.error("فشلت أرشفة الفاتورة"),
+    onError: () => toast.error("فشل نقل الفاتورة إلى سلة المحذوفات"),
   });
+
+  const archiveInvoiceMutation = deleteInvoiceMutation;
 
   const restoreInvoiceMutation = useMutation({
     mutationFn: async (invoice) => {
-      const matches = await apiRequest(`/archived_items?entity_type=invoice&entity_id=${invoice.id}`);
-      await Promise.all(matches.map((m) => apiRequest(`/archived_items/${m.id}`, { method: "DELETE" })));
+      return await apiRequest(`/archive/${invoice.id}/restore`, {
+        method: "POST",
+        body: JSON.stringify({ id: invoice.id }),
+      });
     },
     onSuccess: (_, invoice) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice_items"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["archived_items"] });
       logActivity({
         action: ACTIVITY_ACTIONS.INVOICE_RESTORED,
@@ -204,6 +226,7 @@ export function useInvoices() {
         patientId: invoice.patient_id,
         entityType: "invoice",
         entityId: invoice.id,
+        details: `استعادة الفاتورة من الأرشيف: ${invoice.invoice_no || invoice.id}`,
       });
       toast.success("تمت استعادة الفاتورة بنجاح");
     },

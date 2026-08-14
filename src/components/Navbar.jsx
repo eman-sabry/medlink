@@ -1,14 +1,15 @@
-import { Search, Bell, Sun, Moon, LogOut, User } from "lucide-react";
+import { Sun, Moon, LogOut, User } from "lucide-react";
 import {
   Dropdown,
   DropdownItem,
   DropdownDivider,
   DropdownHeader,
 } from "./ui/Dropdown";
+import { NotificationBell } from "./notifications/NotificationBell";
 import { ROLE_LABELS } from "../permissions/roles";
+import { GlobalSearch } from "./search/GlobalSearch";
 
 export function Navbar({
-  onOpenSearch,
   onToggleDarkMode,
   isDarkMode,
   onLogout,
@@ -31,15 +32,7 @@ export function Navbar({
       </div>
 
       <div className="flex-1 max-w-xl mx-6 hidden sm:block">
-        <button
-          onClick={onOpenSearch}
-          className="flex h-12 w-full items-center gap-3 rounded-2xl border border-border/75 bg-card/80 px-4 text-sm text-muted-foreground hover:bg-card hover:border-primary/50 transition-all cursor-pointer shadow-xs group"
-        >
-          <Search className="h-4 w-4 text-primary transition-transform group-hover:scale-110" />
-          <span className="flex-1 text-right truncate font-medium">
-            ابحث في المرضى، الأطباء، الفواتير…
-          </span>
-        </button>
+        <GlobalSearch />
       </div>
 
       <div className="flex items-center gap-3">
@@ -54,10 +47,7 @@ export function Navbar({
           )}
         </button>
 
-        <button className="relative cursor-pointer flex h-11 w-11 items-center justify-center rounded-2xl border border-border/80 bg-card text-muted-foreground hover:bg-card shadow-xs">
-          <Bell className="h-5 w-5 " />
-          <span className="absolute top-3 right-3 h-2.5 w-2.5 rounded-full bg-destructive animate-pulse ring-2 ring-card bg-red-500"></span>
-        </button>
+        <NotificationBell />
 
         <div className="h-7 w-[1px] bg-border/80 mx-1"></div>
 

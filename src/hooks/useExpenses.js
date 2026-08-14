@@ -5,6 +5,9 @@ import { toast } from "../utils/toast";
 import { logActivity, ACTIVITY_ACTIONS } from "../helpers/activityLog.helpers";
 import { EXPENSE_STATUS } from "../helpers/expense.helpers";
 import { useAuth } from "./useAuth";
+import { createNotification } from "../services/notificationService";
+import { NOTIFICATION_TYPES, NOTIFICATION_SEVERITIES } from "../constants/notificationTypes";
+import { ROLES } from "../permissions/roles";
 
 export const DUPLICATE_EXPENSE_ERROR = "DUPLICATE_EXPENSE";
 
@@ -98,8 +101,20 @@ export function useExpenses() {
 
       return created;
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      if (created) {
+        const isHigh = Number(created.amount) >= 2000;
+        createNotification({
+          type: isHigh ? NOTIFICATION_TYPES.EXPENSE_HIGH_ALERT : NOTIFICATION_TYPES.EXPENSE_CREATED,
+          title: isHigh ? "تنبيه: مصروف مالي مرتفع" : "تسجيل مصروف جديد",
+          message: `تم تسجيل مصروف "${created.description || "—"}" بمبلغ ${created.amount} ج.م`,
+          severity: isHigh ? NOTIFICATION_SEVERITIES.WARNING : NOTIFICATION_SEVERITIES.INFO,
+          entityType: "expense",
+          entityId: created.id,
+          targetRoles: [ROLES.OWNER],
+        });
+      }
       toast.success("تمت إضافة المصروف بنجاح");
     },
     onError: (error) => {
@@ -139,34 +154,48 @@ export function useExpenses() {
   });
 
   const archiveExpenseMutation = useMutation({
-    mutationFn: async (expense) =>
-      apiRequest("/archived_items", {
+    mutationFn: async (payload) => {
+      const id = typeof payload === "object" && payload !== null ? payload.id : payload;
+      const deleteReason = typeof payload === "object" && payload !== null ? payload.deleteReason : "طلب حذف المصروف";
+      const expenseData = typeof payload === "object" && payload !== null ? payload.expense : (expensesQuery.data ?? []).find((e) => e.id === id);
+
+      return await apiRequest("/archive/move", {
         method: "POST",
         body: JSON.stringify({
           entity_type: "expense",
-          entity_id: expense.id,
-          archived_by_user_id: user?.id ?? null,
-          archived_at: new Date().toISOString(),
+          entity_id: String(id),
+          delete_reason: deleteReason || "طلب حذف المصروف",
+          archived_by: user?.full_name || "المسؤول",
+          archived_by_user_id: user?.id || null,
+          title: expenseData?.description || expenseData?.title || "مصروف إداري / عيادي",
+          subtitle: expenseData?.category ? `تصنيف: ${expenseData.category}` : "مصروف",
+          secondary_info: `${Number(expenseData?.amount || 0).toLocaleString("en-US")} ج.م`,
+          original_data: expenseData,
         }),
-      }),
-    onSuccess: (_, expense) => {
+      });
+    },
+    onSuccess: (archivedRecord, variables) => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["archived_items"] });
+      const id = typeof variables === "object" ? variables.id : variables;
       logActivity({
         action: ACTIVITY_ACTIONS.EXPENSE_ARCHIVED,
         actorUserId: user?.id,
         entityType: "expense",
-        entityId: expense.id,
+        entityId: id,
+        details: `نقل المصروف إلى سلة المحذوفات: ${archivedRecord?.title || id}`,
       });
-      toast.success("تمت أرشفة المصروف بنجاح");
+      toast.success("تم نقل المصروف إلى سلة المحذوفات بنجاح");
     },
-    onError: () => toast.error("فشلت أرشفة المصروف"),
+    onError: () => toast.error("فشل نقل المصروف إلى سلة المحذوفات"),
   });
 
   const restoreExpenseMutation = useMutation({
     mutationFn: async (expense) => {
-      const matches = await apiRequest(`/archived_items?entity_type=expense&entity_id=${expense.id}`);
-      await Promise.all(matches.map((m) => apiRequest(`/archived_items/${m.id}`, { method: "DELETE" })));
+      return await apiRequest(`/archive/${expense.id}/restore`, {
+        method: "POST",
+        body: JSON.stringify({ id: expense.id }),
+      });
     },
     onSuccess: (_, expense) => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
@@ -176,6 +205,7 @@ export function useExpenses() {
         actorUserId: user?.id,
         entityType: "expense",
         entityId: expense.id,
+        details: `استعادة المصروف من الأرشيف: ${expense.description || expense.id}`,
       });
       toast.success("تمت استعادة المصروف بنجاح");
     },

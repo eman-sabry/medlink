@@ -1,32 +1,21 @@
-import { ConfirmModal } from "../ui/ConfirmModal"; 
+import { MoveToArchiveModal } from "../archive/MoveToArchiveModal";
 
 export function DeletePatientModal({
   isOpen,
   onClose,
   onConfirm,
   patientName,
+  patientFileNo,
   isLoading = false,
 }) {
-  const description = patientName ? (
-    <>
-      سيتم إزالة بيانات المريض{" "}
-      <strong className="text-foreground">{patientName}</strong> نهائياً من
-      النظام.
-    </>
-  ) : (
-    "لن يمكنك التراجع عن هذه الخطوة بعد إتمامها، سيتم إزالة بيانات المريض نهائياً من النظام."
-  );
-
   return (
-    <ConfirmModal
+    <MoveToArchiveModal
       isOpen={isOpen}
       onClose={onClose}
-      onConfirm={onConfirm}
-      title="هل أنت متأكد من الحذف؟"
-      description={description}
-      confirmText="تأكيد الحذف"
-      cancelText="إلغاء"
-      variant="destructive"
+      onConfirm={(reason) => onConfirm(reason)}
+      entityType="patient"
+      entityName={patientName || "مريض"}
+      entityIdentifier={patientFileNo ? `رقم الملف: ${patientFileNo}` : ""}
       isLoading={isLoading}
     />
   );

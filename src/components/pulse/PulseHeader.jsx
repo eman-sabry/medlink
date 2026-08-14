@@ -11,14 +11,14 @@ function LiveClock() {
     return () => clearInterval(id);
   }, []);
 
-  const dateLabel = new Intl.DateTimeFormat("ar-EG", {
+  const dateLabel = new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   }).format(now);
 
-  const timeLabel = new Intl.DateTimeFormat("ar-EG", {
+  const timeLabel = new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",

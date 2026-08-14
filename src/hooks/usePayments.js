@@ -5,6 +5,9 @@ import { PAYMENT_STATUS } from "../utils/billing";
 import { logActivity, ACTIVITY_ACTIONS } from "../helpers/activityLog.helpers";
 import { useAuth } from "./useAuth";
 import { hasPermission } from "../permissions/permissions";
+import { createNotification } from "../services/notificationService";
+import { NOTIFICATION_TYPES, NOTIFICATION_SEVERITIES } from "../constants/notificationTypes";
+import { ROLES } from "../permissions/roles";
 
 export function usePayments() {
   const queryClient = useQueryClient();
@@ -51,9 +54,27 @@ export function usePayments() {
 
       return created;
     },
-    onSuccess: () => {
+    onSuccess: (created, variables) => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+
+      if (created) {
+        createNotification({
+          type: NOTIFICATION_TYPES.PAYMENT_RECEIVED,
+          title: "تحصيل دفعة مالية",
+          message: `تم استلام دفعة بقيمة ${variables.amount ?? 0} ج.م (${variables.method || "نقدي"})`,
+          severity: NOTIFICATION_SEVERITIES.SUCCESS,
+          entityType: "payment",
+          entityId: created.id,
+          targetRoles: [ROLES.OWNER, ROLES.SECRETARY],
+          metadata: {
+            amount: variables.amount,
+            invoice_id: variables.invoice_id,
+            patient_id: variables.patientId,
+          },
+        });
+      }
+
       toast.success("تم تسجيل الدفع بنجاح");
     },
     onError: (error) => toast.error(error.message || "فشل تسجيل الدفع"),

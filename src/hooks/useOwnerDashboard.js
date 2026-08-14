@@ -92,6 +92,21 @@ export function useOwnerDashboard() {
     expensesQuery.isLoading ||
     archivedItemsQuery.isLoading;
 
+  const isError =
+    patientsQuery.isError ||
+    staffQuery.isError ||
+    appointmentsQuery.isError ||
+    devicesQuery.isError ||
+    maintenanceQuery.isError ||
+    roomsQuery.isError ||
+    invoicesQuery.isError ||
+    paymentsQuery.isError ||
+    paymentRefundsQuery.isError ||
+    treatmentSessionsQuery.isError ||
+    servicesQuery.isError ||
+    expensesQuery.isError ||
+    archivedItemsQuery.isError;
+
   const invoiceStatuses = useMemo(
     () => computeInvoiceStatuses(invoices, payments, paymentRefunds),
     [invoices, payments, paymentRefunds],
@@ -214,7 +229,12 @@ export function useOwnerDashboard() {
       (e) => !archivedExpenseIds.has(e.id) && (e.status ?? "Paid") === "Paid",
     );
     const expenseCharts = buildExpenseCharts(activePaidExpenses);
-    const revenueVsExpenses = buildRevenueVsExpensesSeries({ payments, expenses, archivedExpenseIds }).monthly;
+    const revenueVsExpensesSeries = buildRevenueVsExpensesSeries({
+      payments,
+      paymentRefunds,
+      expenses,
+      archivedExpenseIds,
+    });
 
     return {
       revenueTrend,
@@ -231,10 +251,12 @@ export function useOwnerDashboard() {
       expensesByCategory: expenseCharts.expensesByCategory,
       expensesTrendMonthly: expenseCharts.expensesTrendMonthly,
       maintenanceExpensesTrend: expenseCharts.maintenanceExpensesTrend,
-      revenueVsExpenses,
+      revenueVsExpenses: revenueVsExpensesSeries.monthly,
+      revenueVsExpensesSeries,
     };
   }, [
     payments,
+    paymentRefunds,
     patients,
     appointments,
     devices,
@@ -285,6 +307,7 @@ export function useOwnerDashboard() {
 
   return {
     isLoading,
+    isError,
     stats,
     charts,
     recentActivities,

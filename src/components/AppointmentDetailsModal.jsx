@@ -27,7 +27,7 @@ export function AppointmentDetailsModal({ isOpen, appointment, onClose }) {
   const formatTime = (isoString) => {
     const date = parseDate(isoString);
     if (!date) return isoString || "-";
-    return date.toLocaleTimeString("ar-EG", {
+    return date.toLocaleTimeString("ar-EG-u-nu-latn", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
@@ -37,7 +37,7 @@ export function AppointmentDetailsModal({ isOpen, appointment, onClose }) {
   const formatDate = (isoString) => {
     const date = parseDate(isoString);
     if (!date) return isoString || "-";
-    return new Intl.DateTimeFormat("ar-EG", {
+    return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
       day: "numeric",
       month: "long",
       year: "numeric",

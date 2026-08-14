@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Navbar } from "../components/Navbar";
 import { Sidebar } from "../components/Sidebar";
 import { FloatingQuickActions } from "../components/dashboard/FloatingQuickActions";
+import { LiveOperationsWindow } from "../components/live-operations/LiveOperationsWindow";
 import { Menu, X, ChevronRight, ChevronLeft } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { toast } from "../utils/toast";
@@ -114,9 +115,6 @@ const floatingActions = getFloatingActionsByRole(userRole);
 
             <div className="flex-1 max-w-full">
               <Navbar
-                onOpenSearch={() =>
-                  toast.info("سيتم إضافة البحث السريع قريباً")
-                }
                 onToggleDarkMode={toggleDarkMode}
                 isDarkMode={isDarkMode}
                 onLogout={handleLogout}
@@ -136,6 +134,7 @@ const floatingActions = getFloatingActionsByRole(userRole);
         </main>
 
         <FloatingQuickActions actions={floatingActions} />
+        <LiveOperationsWindow />
       </div>
     </div>
   );

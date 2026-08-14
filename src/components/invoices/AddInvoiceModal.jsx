@@ -47,7 +47,7 @@ export function AddInvoiceModal({
     () =>
       patientAppointments.map((a) => ({
         value: a.id,
-        label: `${a.service_name} — ${new Date(a.starts_at).toLocaleDateString("ar-EG")}`,
+        label: `${a.service_name} — ${new Date(a.starts_at).toLocaleDateString("ar-EG-u-nu-latn")}`,
       })),
     [patientAppointments],
   );

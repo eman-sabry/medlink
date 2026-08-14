@@ -11,6 +11,9 @@ import {
 } from "../utils/toast";
 import { useExpenses } from "./useExpenses";
 import { useAuth } from "./useAuth";
+import { createNotification } from "../services/notificationService";
+import { NOTIFICATION_TYPES, NOTIFICATION_SEVERITIES } from "../constants/notificationTypes";
+import { ROLES } from "../permissions/roles";
 
 export function useMaintenance() {
     const queryClient = useQueryClient();
@@ -35,6 +38,17 @@ export function useMaintenance() {
             queryClient.invalidateQueries({
                 queryKey: ["maintenance"]
             });
+            if (created) {
+                createNotification({
+                    type: NOTIFICATION_TYPES.DEVICE_MAINTENANCE,
+                    title: "تسجيل طلب صيانة",
+                    message: `تم تسجيل طلب صيانة: ${created.reason || "صيانة دورية"}`,
+                    severity: NOTIFICATION_SEVERITIES.WARNING,
+                    entityType: "maintenance",
+                    entityId: created.id,
+                    targetRoles: [ROLES.OWNER],
+                });
+            }
             toast.success("تم إنشاء سجل الصيانة بنجاح");
             ensureExpenseForMaintenance({ maintenance: created, actorUserId: user?.id });
         },
@@ -77,6 +91,19 @@ export function useMaintenance() {
             queryClient.invalidateQueries({
                 queryKey: ["maintenance"]
             });
+
+            if (variables.status === "Completed") {
+                createNotification({
+                    type: NOTIFICATION_TYPES.MAINTENANCE_COMPLETED,
+                    title: "اكتمال أعمال الصيانة",
+                    message: "تم إنجاز أعمال الصيانة للجهاز بنجاح وإعادته للخدمة",
+                    severity: NOTIFICATION_SEVERITIES.SUCCESS,
+                    entityType: "maintenance",
+                    entityId: variables.id,
+                    targetRoles: [ROLES.OWNER],
+                });
+            }
+
             toast.success(
                 variables.status === "Completed" ?
                 "تم إنجاز الصيانة بنجاح" :
@@ -92,18 +119,34 @@ export function useMaintenance() {
     });
 
     const deleteMaintenanceMutation = useMutation({
-        mutationFn: async (id) => {
-            return await apiRequest(`/maintenance/${id}`, {
-                method: "DELETE",
+        mutationFn: async (payload) => {
+            const id = typeof payload === "object" && payload !== null ? payload.id : payload;
+            const deleteReason = typeof payload === "object" && payload !== null ? payload.deleteReason : "طلب حذف سجل الصيانة";
+            const mainData = typeof payload === "object" && payload !== null ? payload.maintenance : (maintenanceQuery.data ?? []).find((m) => m.id === id);
+
+            return await apiRequest("/archive/move", {
+                method: "POST",
+                body: JSON.stringify({
+                    entity_type: "maintenance",
+                    entity_id: String(id),
+                    delete_reason: deleteReason || "طلب حذف سجل الصيانة",
+                    title: mainData?.reason || "سجل صيانة",
+                    subtitle: mainData?.device_name ? `الجهاز: ${mainData.device_name}` : "صيانة",
+                    secondary_info: `${Number(mainData?.cost || 0).toLocaleString("en-US")} ج.م`,
+                    original_data: mainData,
+                }),
             });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({
                 queryKey: ["maintenance"]
             });
-            toast.success("تم حذف سجل الصيانة بنجاح");
+            queryClient.invalidateQueries({
+                queryKey: ["archived_items"]
+            });
+            toast.success("تم نقل سجل الصيانة إلى سلة المحذوفات بنجاح");
         },
-        onError: () => toast.error("فشل حذف سجل الصيانة"),
+        onError: () => toast.error("فشل نقل سجل الصيانة إلى سلة المحذوفات"),
     });
 
     return {

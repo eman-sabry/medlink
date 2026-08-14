@@ -25,6 +25,8 @@ import PackageTemplatesPage from "../pages/PackageTemplatesPage";
 import ServicesPage from "../pages/ServicesPage";
 import RoomsPage from "../pages/RoomsPage";
 import TeamPage from "../pages/TeamPage";
+import NotificationsPage from "../pages/NotificationsPage";
+import { ArchivePage } from "../pages/ArchivePage";
 
 function protect(path, element) {
   return <ProtectedRoute roles={ROUTE_PERMISSIONS[path]}>{element}</ProtectedRoute>;
@@ -47,6 +49,7 @@ export default function AppRoutes() {
       <Route path="/pulse" element={protect("/pulse", <CenterPulsePage />)} />
 
       <Route path="/profile" element={protect("/profile", <ProfilePage />)} />
+      <Route path="/notifications" element={protect("/notifications", <NotificationsPage />)} />
       <Route path="/patients" element={protect("/patients", <PatientsPage />)} />
       <Route path="/patients/:id" element={protect("/patients/:id", <PatientDetailsPage />)} />
       <Route path="/appointments" element={protect("/appointments", <AppointmentsPage />)} />
@@ -61,6 +64,7 @@ export default function AppRoutes() {
       <Route path="/expenses" element={protect("/expenses", <ExpensesPage />)} />
       <Route path="/rooms" element={protect("/rooms", <RoomsPage />)} />
       <Route path="/team" element={protect("/team", <TeamPage />)} />
+      <Route path="/archive" element={protect("/archive", <ArchivePage />)} />
 
       <Route
         path="*"

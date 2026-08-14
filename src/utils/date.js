@@ -8,7 +8,7 @@ export function parseDate(isoString) {
 export function formatTime(isoString, fallback = "09:00 ص") {
   const date = parseDate(isoString);
   if (!date) return isoString || fallback;
-  return date.toLocaleTimeString("ar-EG", {
+  return date.toLocaleTimeString("ar-EG-u-nu-latn", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
@@ -18,7 +18,7 @@ export function formatTime(isoString, fallback = "09:00 ص") {
 export function formatDate(isoString, fallback = "4 أغسطس 2026") {
   const date = parseDate(isoString);
   if (!date) return isoString || fallback;
-  return new Intl.DateTimeFormat("ar-EG", {
+  return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
     day: "numeric",
     month: "long",
     year: "numeric",

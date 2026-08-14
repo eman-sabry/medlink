@@ -29,6 +29,9 @@ import { sessionDurationMinutes, sessionDurationSeconds } from "../helpers/patie
 import { computeNetPaid, computePaymentStatus } from "../utils/billing";
 import { countBy } from "../utils/stats";
 import { IN_PROGRESS_STATUSES, COMPLETED_STATUSES, WAITING_STATUSES, normalizeStatus } from "../helpers/appointmentStatus.helpers";
+import { createNotification } from "../services/notificationService";
+import { NOTIFICATION_TYPES, NOTIFICATION_SEVERITIES } from "../constants/notificationTypes";
+import { ROLES } from "../permissions/roles";
 
 const EMPTY_ARRAY = [];
 
@@ -111,18 +114,6 @@ export function useDoctorSessions() {
         refetchOnWindowFocus: false,
     });
 
-    const rawAppointments = doctorSessionsQuery.data ?? [];
-    const patientsList = patientsQuery.data ?? [];
-    const staffList = staffQuery.data ?? [];
-    const roomsList = roomsQuery.data ?? [];
-    const bedsList = bedsQuery.data ?? [];
-    const treatmentSessionsList = treatmentSessionsQuery.data ?? [];
-    const packageSessionUsagesList = packageSessionUsagesQuery.data ?? EMPTY_ARRAY;
-    const patientPackagesList = patientPackagesQuery.data ?? EMPTY_ARRAY;
-    const packageTemplatesList = packageTemplatesQuery.data ?? EMPTY_ARRAY;
-    const paymentsList = paymentsQuery.data ?? EMPTY_ARRAY;
-    const paymentRefundsList = paymentRefundsQuery.data ?? EMPTY_ARRAY;
-
     const startSessionMutation = useMutation({
         mutationFn: async ({ app, initialNotes }) => {
             const treatmentSession = await ensureTreatmentSessionForAppointment(app);
@@ -147,6 +138,25 @@ export function useDoctorSessions() {
                 entityId: treatmentSession.id,
                 details: "بدء الجلسة من صفحة الجلسات",
             });
+
+            const patient = (patientsQuery.data ?? []).find((p) => p.id === app.patient_id);
+            const patientName = patient?.full_name || app?.patient_name || "مريض";
+
+            createNotification({
+                type: NOTIFICATION_TYPES.SESSION_STARTED,
+                title: "بدء جلسة علاج طبيعي",
+                message: `تم بدء الجلسة للمريض ${patientName}`,
+                severity: NOTIFICATION_SEVERITIES.INFO,
+                entityType: "session",
+                entityId: treatmentSession.id,
+                targetRoles: [ROLES.OWNER, ROLES.SECRETARY, ROLES.DOCTOR],
+                doctorStaffId: app.doctor_id,
+                metadata: {
+                    appointment_id: app.id,
+                    patient_id: app.patient_id,
+                },
+            });
+
             toast.success("تم بدء الجلسة بنجاح");
         },
         onError: (error) => {
@@ -189,6 +199,25 @@ export function useDoctorSessions() {
                 entityId: treatmentSession.id,
                 details: "إنهاء الجلسة من صفحة الجلسات",
             });
+
+            const patient = (patientsQuery.data ?? []).find((p) => p.id === appointment.patient_id);
+            const patientName = patient?.full_name || appointment?.patient_name || "مريض";
+
+            createNotification({
+                type: NOTIFICATION_TYPES.SESSION_COMPLETED,
+                title: "اكتمال جلسة العلاج",
+                message: `تم إنهاء جلسة المريض ${patientName} بنجاح`,
+                severity: NOTIFICATION_SEVERITIES.SUCCESS,
+                entityType: "session",
+                entityId: treatmentSession.id,
+                targetRoles: [ROLES.OWNER, ROLES.SECRETARY, ROLES.DOCTOR],
+                doctorStaffId: appointment.doctor_id,
+                metadata: {
+                    appointment_id: appointment.id,
+                    patient_id: appointment.patient_id,
+                },
+            });
+
             toast.success("تم إنهاء الجلسة بنجاح");
             resolvePackageCoverage(queryClient, {
                 appointment,
@@ -211,6 +240,18 @@ export function useDoctorSessions() {
     };
 
     const enrichedAppointments = useMemo(() => {
+        const rawAppointments = doctorSessionsQuery.data ?? [];
+        const patientsList = patientsQuery.data ?? [];
+        const staffList = staffQuery.data ?? [];
+        const roomsList = roomsQuery.data ?? [];
+        const bedsList = bedsQuery.data ?? [];
+        const treatmentSessionsList = treatmentSessionsQuery.data ?? [];
+        const packageSessionUsagesList = packageSessionUsagesQuery.data ?? EMPTY_ARRAY;
+        const patientPackagesList = patientPackagesQuery.data ?? EMPTY_ARRAY;
+        const packageTemplatesList = packageTemplatesQuery.data ?? EMPTY_ARRAY;
+        const paymentsList = paymentsQuery.data ?? EMPTY_ARRAY;
+        const paymentRefundsList = paymentRefundsQuery.data ?? EMPTY_ARRAY;
+
         function computeSessionBilling(app, matchedSession) {
             const usage = matchedSession
                 ? packageSessionUsagesList.find((u) => u.treatment_session_id === matchedSession.id && !u.reversed_at)
@@ -264,18 +305,18 @@ export function useDoctorSessions() {
             };
         });
     }, [
-        rawAppointments,
-        patientsList,
-        staffList,
-        treatmentSessionsList,
-        roomsList,
-        bedsList,
-        packageSessionUsagesList,
-        patientPackagesList,
-        packageTemplatesList,
+        doctorSessionsQuery.data,
+        patientsQuery.data,
+        staffQuery.data,
+        treatmentSessionsQuery.data,
+        roomsQuery.data,
+        bedsQuery.data,
+        packageSessionUsagesQuery.data,
+        patientPackagesQuery.data,
+        packageTemplatesQuery.data,
         invoices,
-        paymentsList,
-        paymentRefundsList,
+        paymentsQuery.data,
+        paymentRefundsQuery.data,
     ]);
 
     const filteredAppointments = useMemo(() => {

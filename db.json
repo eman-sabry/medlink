@@ -960,15 +960,6 @@
   ],
   "package-templates": [
     {
-      "id": "pkt10000-0000-0000-0000-000000000001",
-      "name": "باقة علاجية متكاملة 1",
-      "price": 1600,
-      "discount_percent": 10,
-      "session_count": 6,
-      "status": "Active",
-      "validity_days": 90
-    },
-    {
       "id": "pkt10000-0000-0000-0000-000000000002",
       "name": "باقة علاجية متكاملة 2",
       "price": 1700,
@@ -1051,6 +1042,15 @@
       "price": 2500,
       "discount_percent": 10,
       "session_count": 15,
+      "status": "Active",
+      "validity_days": 90
+    },
+    {
+      "id": "pkt10000-0000-0000-0000-000000000001",
+      "name": "باقة علاجية متكاملة 1",
+      "price": 1600,
+      "discount_percent": 10,
+      "session_count": 6,
       "status": "Active",
       "validity_days": 90
     }
@@ -6259,10 +6259,10 @@
       "patient_id": "3cZh3C33ccC",
       "doctor_id": "s1000000-0000-0000-0000-000000000002",
       "assignee_staff_id": "s1000000-0000-0000-0000-000000000002",
-      "status": "تم الاتصال",
-      "follow_up_status": "تم الاتصال",
+      "status": "أعاد الحجز",
+      "follow_up_status": "أعاد الحجز",
       "notes": "—",
-      "updated_at": "2026-08-06T14:18:42.103Z"
+      "updated_at": "2026-08-14T15:08:49.573Z"
     },
     {
       "id": "fol10000-0000-0000-0000-000000000003",
@@ -6563,58 +6563,7 @@
       "event_type": "Appointment Created"
     }
   ],
-  "notifications": [
-    {
-      "id": "notif100-0000-0000-0000-000000000001",
-      "type": "Reminder",
-      "title": "تنبيه هام رقم 1"
-    },
-    {
-      "id": "notif100-0000-0000-0000-000000000002",
-      "type": "Reminder",
-      "title": "تنبيه هام رقم 2"
-    },
-    {
-      "id": "notif100-0000-0000-0000-000000000003",
-      "type": "Reminder",
-      "title": "تنبيه هام رقم 3"
-    },
-    {
-      "id": "notif100-0000-0000-0000-000000000004",
-      "type": "Reminder",
-      "title": "تنبيه هام رقم 4"
-    },
-    {
-      "id": "notif100-0000-0000-0000-000000000005",
-      "type": "Reminder",
-      "title": "تنبيه هام رقم 5"
-    },
-    {
-      "id": "notif100-0000-0000-0000-000000000006",
-      "type": "Reminder",
-      "title": "تنبيه هام رقم 6"
-    },
-    {
-      "id": "notif100-0000-0000-0000-000000000007",
-      "type": "Reminder",
-      "title": "تنبيه هام رقم 7"
-    },
-    {
-      "id": "notif100-0000-0000-0000-000000000008",
-      "type": "Reminder",
-      "title": "تنبيه هام رقم 8"
-    },
-    {
-      "id": "notif100-0000-0000-0000-000000000009",
-      "type": "Reminder",
-      "title": "تنبيه هام رقم 9"
-    },
-    {
-      "id": "notif100-0000-0000-0000-000000000010",
-      "type": "Reminder",
-      "title": "تنبيه هام رقم 10"
-    }
-  ],
+  "notifications": [],
   "notification_recipients": [
     {
       "notification_id": "notif100-0000-0000-0000-000000000001",
@@ -9797,70 +9746,39 @@
       "details": "100 ج.م — Cash",
       "created_at": "2026-08-11T01:06:16.208Z",
       "id": "VrfsTJkVRiM"
+    },
+    {
+      "id": "dfe2b631-d033-4569-90cf-2e2a92f964c9",
+      "action": "ARCHIVE_EMPTIED",
+      "actor_user_id": "usr10000-0000-0000-0000-000000000001",
+      "patient_id": null,
+      "entity_type": "archive",
+      "entity_id": "all",
+      "details": "إفراغ سلة المحذوفات بالكامل (10 عنصر)",
+      "created_at": "2026-08-14T15:09:13.534Z"
+    },
+    {
+      "id": "e062f553-f3f4-4194-91ca-7faf78809b1d",
+      "action": "PACKAGE_ARCHIVED",
+      "actor_user_id": "usr10000-0000-0000-0000-000000000001",
+      "patient_id": null,
+      "entity_type": "package",
+      "entity_id": "pkt10000-0000-0000-0000-000000000001",
+      "details": "نقل الباقة إلى سلة المحذوفات: باقة علاجية متكاملة 1",
+      "created_at": "2026-08-14T15:09:37.285Z"
+    },
+    {
+      "id": "dc0d8f0f-3cf3-469e-8c00-f01ebbc7f59f",
+      "action": "ITEM_RESTORED",
+      "actor_user_id": "usr10000-0000-0000-0000-000000000001",
+      "patient_id": null,
+      "entity_type": "package",
+      "entity_id": "pkt10000-0000-0000-0000-000000000001",
+      "details": "استعادة من الأرشيف: باقة علاجية متكاملة 1",
+      "created_at": "2026-08-14T15:09:46.039Z"
     }
   ],
-  "archived_items": [
-    {
-      "id": "arc10000-0000-0000-0000-000000000001",
-      "archived_by_user_id": "u1000000-0000-0000-0000-000000000001",
-      "entity_type": "patient",
-      "entity_id": "2bYg2B22bbB"
-    },
-    {
-      "id": "arc10000-0000-0000-0000-000000000002",
-      "archived_by_user_id": "u1000000-0000-0000-0000-000000000002",
-      "entity_type": "patient",
-      "entity_id": "3cZh3C33ccC"
-    },
-    {
-      "id": "arc10000-0000-0000-0000-000000000003",
-      "archived_by_user_id": "u1000000-0000-0000-0000-000000000003",
-      "entity_type": "patient",
-      "entity_id": "4dAi4D44ddD"
-    },
-    {
-      "id": "arc10000-0000-0000-0000-000000000004",
-      "archived_by_user_id": "u1000000-0000-0000-0000-000000000004",
-      "entity_type": "patient",
-      "entity_id": "3bQf4P62jxQ"
-    },
-    {
-      "id": "arc10000-0000-0000-0000-000000000005",
-      "archived_by_user_id": "u1000000-0000-0000-0000-000000000005",
-      "entity_type": "patient",
-      "entity_id": "4cRg5Q73kyR"
-    },
-    {
-      "id": "arc10000-0000-0000-0000-000000000006",
-      "archived_by_user_id": "u1000000-0000-0000-0000-000000000006",
-      "entity_type": "patient",
-      "entity_id": "5dSh6R84lzS"
-    },
-    {
-      "id": "arc10000-0000-0000-0000-000000000007",
-      "archived_by_user_id": "u1000000-0000-0000-0000-000000000007",
-      "entity_type": "patient",
-      "entity_id": "6eTi7S95maT"
-    },
-    {
-      "id": "arc10000-0000-0000-0000-000000000008",
-      "archived_by_user_id": "u1000000-0000-0000-0000-000000000008",
-      "entity_type": "patient",
-      "entity_id": "7fUj8T06nbU"
-    },
-    {
-      "id": "arc10000-0000-0000-0000-000000000009",
-      "archived_by_user_id": "u1000000-0000-0000-0000-000000000009",
-      "entity_type": "patient",
-      "entity_id": "8gVk9U17ocV"
-    },
-    {
-      "id": "arc10000-0000-0000-0000-000000000010",
-      "archived_by_user_id": "u1000000-0000-0000-0000-000000000010",
-      "entity_type": "patient",
-      "entity_id": "9hWl0V28pdW"
-    }
-  ],
+  "archived_items": [],
   "users": [
     {
       "id": "usr10000-0000-0000-0000-000000000001",

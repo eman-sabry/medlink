@@ -9,9 +9,12 @@ import {
 import {
     toast
 } from "../utils/toast";
+import { useAuth } from "./useAuth";
+import { logActivity, ACTIVITY_ACTIONS } from "../helpers/activityLog.helpers";
 
 export function useServices() {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
 
     const servicesQuery = useQuery({
         queryKey: ["services"],
@@ -56,18 +59,44 @@ export function useServices() {
     });
 
     const deleteServiceMutation = useMutation({
-        mutationFn: async (id) => {
-            return await apiRequest(`/services/${id}`, {
-                method: "DELETE",
+        mutationFn: async (payload) => {
+            const id = typeof payload === "object" && payload !== null ? payload.id : payload;
+            const deleteReason = typeof payload === "object" && payload !== null ? payload.deleteReason : "طلب حذف الخدمة";
+            const srvData = typeof payload === "object" && payload !== null ? payload.service : (servicesQuery.data ?? []).find((s) => s.id === id);
+
+            return await apiRequest("/archive/move", {
+                method: "POST",
+                body: JSON.stringify({
+                    entity_type: "service",
+                    entity_id: String(id),
+                    delete_reason: deleteReason || "طلب حذف الخدمة",
+                    archived_by: user?.full_name || "المسؤول",
+                    archived_by_user_id: user?.id || null,
+                    title: srvData?.name || "خدمة علاجية",
+                    subtitle: srvData?.duration_minutes ? `المدة: ${srvData.duration_minutes} دقيقة` : "خدمة",
+                    secondary_info: `${Number(srvData?.price || 0).toLocaleString("en-US")} ج.م`,
+                    original_data: srvData,
+                }),
             });
         },
-        onSuccess: () => {
+        onSuccess: (archivedRecord, variables) => {
             queryClient.invalidateQueries({
                 queryKey: ["services"]
             });
-            toast.success("تم حذف الخدمة بنجاح");
+            queryClient.invalidateQueries({
+                queryKey: ["archived_items"]
+            });
+            const id = typeof variables === "object" ? variables.id : variables;
+            logActivity({
+                action: ACTIVITY_ACTIONS.SERVICE_ARCHIVED || "SERVICE_ARCHIVED",
+                actorUserId: user?.id,
+                entityType: "service",
+                entityId: id,
+                details: `نقل الخدمة إلى سلة المحذوفات: ${archivedRecord?.title || id}`,
+            });
+            toast.success("تم نقل الخدمة إلى سلة المحذوفات بنجاح");
         },
-        onError: () => toast.error("فشل حذف الخدمة"),
+        onError: () => toast.error("فشل نقل الخدمة إلى سلة المحذوفات"),
     });
 
     return {
