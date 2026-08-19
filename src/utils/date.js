@@ -18,11 +18,15 @@ export function formatTime(isoString, fallback = "09:00 ص") {
 export function formatDate(isoString, fallback = "4 أغسطس 2026") {
   const date = parseDate(isoString);
   if (!date) return isoString || fallback;
-  return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
+  try {
+    return date.toLocaleDateString("ar-EG-u-nu-latn", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return date.toLocaleDateString() || fallback;
+  }
 }
 
 export function formatDurationSeconds(totalSeconds = 0) {

@@ -46,9 +46,9 @@ function PatientDetailsSkeleton() {
 export default function PatientDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { role } = useAuth();
-  const canViewBilling = hasPermission(role, "billing:view");
-  const canAssignPackage = hasPermission(role, "packages:assign");
+  const { user, role } = useAuth();
+  const canViewBilling = hasPermission(user || role, "billing:view");
+  const canAssignPackage = hasPermission(user || role, "packages:assign");
   const [activeTab, setActiveTab] = useState("overview");
   const [isAssignPackageOpen, setIsAssignPackageOpen] = useState(false);
 

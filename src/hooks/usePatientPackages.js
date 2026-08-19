@@ -111,8 +111,8 @@ export async function resolvePackageCoverage(queryClient, { appointment, treatme
     return { coveredByPackage: false, invoice: null };
 }
 
-export async function createIndividualBookingInvoice(queryClient, { appointment, addInvoice, addPayment, paymentMethod, role, actorUserId }) {
-    if (!hasPermission(role, "billing:create")) {
+export async function createIndividualBookingInvoice(queryClient, { appointment, addInvoice, addPayment, paymentMethod, role, user, actorUserId }) {
+    if (!hasPermission(user || role, "billing:create")) {
         const error = new Error("لا تملك صلاحية إنشاء فاتورة");
         error.code = "FORBIDDEN";
         throw error;

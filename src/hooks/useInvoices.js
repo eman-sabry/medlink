@@ -58,7 +58,7 @@ export function useInvoices() {
 
   const addInvoiceMutation = useMutation({
     mutationFn: async ({ invoice, items = [] }) => {
-      if (!hasPermission(role, "billing:create")) {
+      if (!hasPermission(user || role, "billing:create")) {
         const error = new Error("لا تملك صلاحية إنشاء فاتورة");
         error.code = "FORBIDDEN";
         throw error;

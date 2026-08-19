@@ -22,7 +22,7 @@ export function usePayments() {
 
   const addPaymentMutation = useMutation({
     mutationFn: async ({ remainingBalance, amount, patientId, ...payment }) => {
-      if (!hasPermission(role, "billing:record_payment")) {
+      if (!hasPermission(user || role, "billing:record_payment")) {
         const error = new Error("لا تملك صلاحية تسجيل دفعة");
         error.code = "FORBIDDEN";
         throw error;

@@ -11,19 +11,25 @@ function LiveClock() {
     return () => clearInterval(id);
   }, []);
 
-  const dateLabel = new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(now);
-
-  const timeLabel = new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  }).format(now);
+  let dateLabel;
+  let timeLabel;
+  try {
+    dateLabel = now.toLocaleDateString("ar-EG-u-nu-latn", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    timeLabel = now.toLocaleTimeString("ar-EG-u-nu-latn", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    dateLabel = now.toLocaleDateString();
+    timeLabel = now.toLocaleTimeString();
+  }
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
