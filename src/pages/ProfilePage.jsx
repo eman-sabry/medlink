@@ -237,7 +237,7 @@ export default function ProfilePage() {
             </div>
           ) : (
             sessions.map((sess, idx) => {
-              const id = sess.sessionId || sess.id || `sess_${idx}`;
+              const id = sess.sessionId || sess.id;
               const isCurrent = Boolean(sess.current || sess.isCurrent);
               const formatSafeDate = (d) => {
                 if (!d) return null;
@@ -255,7 +255,7 @@ export default function ProfilePage() {
 
               return (
                 <div
-                  key={id}
+                  key={id || `sess_key_${idx}`}
                   className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
                     isCurrent
                       ? "bg-primary/5 border-primary/30"
@@ -305,8 +305,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
-
-                  {!isCurrent && !sess.revoked && (
+                  {!isCurrent && !sess.revoked && id && (
                     <button
                       type="button"
                       onClick={() => deleteSession(id)}

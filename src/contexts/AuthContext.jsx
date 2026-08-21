@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import * as authService from "../auth/authService";
+import { apiRequest } from "../api/client";
 import { toast } from "../utils/toast";
 import { AuthContext } from "./authContextInstance";
 
 export function AuthProvider({ children }) {
+  const queryClient = useQueryClient();
   const [initialSession] = useState(() => authService.loadSession());
   const [user, setUser] = useState(initialSession?.user ?? null);
   const [isInitializing, setIsInitializing] = useState(() => {
@@ -11,6 +14,9 @@ export function AuthProvider({ children }) {
       localStorage.getItem("medlink_token") && !initialSession?.expired,
     );
   });
+
+  // Ref to hold the auto-refresh timer so logout() can cancel it from outside the effect.
+  const refreshTimeoutRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -49,8 +55,6 @@ export function AuthProvider({ children }) {
       syncCurrentUser();
     }
 
-    let refreshTimeout = null;
-
     function scheduleAutoRefresh() {
       const currentToken = localStorage.getItem("medlink_token");
       if (!currentToken) return;
@@ -70,8 +74,8 @@ export function AuthProvider({ children }) {
         delayMs = 10 * 60 * 1000;
       }
 
-      if (refreshTimeout) clearTimeout(refreshTimeout);
-      refreshTimeout = setTimeout(async () => {
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = setTimeout(async () => {
         if (!isMounted) return;
         try {
           await authService.refreshToken();
@@ -86,33 +90,50 @@ export function AuthProvider({ children }) {
 
     return () => {
       isMounted = false;
-      if (refreshTimeout) clearTimeout(refreshTimeout);
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
     };
   }, [initialSession]);
 
   const login = useCallback(async (username, password) => {
+    // Clear any stale React Query cache from a previous session so the
+    // dashboard queries will fetch fresh data after navigation.
+    queryClient.removeQueries();
+
     const loggedInUser = await authService.login(username, password);
     setUser(loggedInUser);
-
-    try {
-      const serverUser = await authService.getMe();
-      if (serverUser) {
-        const combined = { ...loggedInUser, ...serverUser };
-        setUser(combined);
-        authService.saveSession(combined);
-        return combined;
-      }
-    } catch {
-      // ignore
-    }
-
     return loggedInUser;
-  }, []);
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
-    await authService.logout();
+    // 1. Cancel any pending auto-refresh timer to prevent it from
+    //    restoring state after we clear it.
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = null;
+    }
+
+    // 2. Clear React state and localStorage synchronously FIRST,
+    //    so the very next render sees isAuthenticated === false.
+    //    This prevents the dashboard flash.
     setUser(null);
-  }, []);
+    authService.clearSession();
+
+    // Purge all React Query cached data from this session so a
+    // subsequent login starts with a clean slate.
+    queryClient.removeQueries();
+
+    // 3. Fire-and-forget the server-side logout (best-effort).
+    //    We don't await this because the local state is already clean.
+    try {
+      await apiRequest("/api/v1/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({}),
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch {
+      // Server-side logout is best-effort; local session is already cleared.
+    }
+  }, [queryClient]);
 
   const refreshSession = useCallback(async () => {
     try {

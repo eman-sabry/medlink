@@ -91,13 +91,6 @@ export function useProfile() {
 
   const logoutAllMutation = useMutation({
     mutationFn: async () => {
-      const currentList = sessionsQuery.data || [];
-      currentList
-        .filter((s) => !s.current && !s.isCurrent)
-        .forEach((s) => {
-          const id = s.sessionId || s.id;
-          if (id) authDeleteSession(id).catch(() => {});
-        });
       return authLogoutAll();
     },
     onSuccess: () => {
