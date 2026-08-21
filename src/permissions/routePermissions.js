@@ -28,6 +28,9 @@ export const ROUTE_PERMISSIONS = {
 
 export function canAccessRoute(role, path) {
   const allowedRoles = ROUTE_PERMISSIONS[path];
-  if (!allowedRoles) return true; 
-  return allowedRoles.includes(role);
+  if (!allowedRoles) return true;
+  if (!role) return false;
+  const roleLower = String(role).trim().toLowerCase();
+  if (roleLower === "owner" || roleLower === "admin") return true;
+  return allowedRoles.some((r) => String(r).toLowerCase() === roleLower);
 }

@@ -219,11 +219,20 @@ export function useOwnerDashboard() {
       workloadByDoctorId.set(doctorId, entry);
     });
 
-    const doctorPerformance = [...workloadByDoctorId.entries()].map(([doctorId, entry]) => ({
-      name: staffById.get(doctorId)?.full_name ?? "طبيب غير معروف",
-      completed: entry.completed,
-      hours: Number(entry.hours.toFixed(1)),
-    }));
+    const nameCount = new Map();
+    const doctorPerformance = [...workloadByDoctorId.entries()].map(([doctorId, entry]) => {
+      const baseName = staffById.get(doctorId)?.full_name ?? (doctorId ? `طبيب (${String(doctorId).slice(-4)})` : "طبيب غير محدد");
+      const currentCount = (nameCount.get(baseName) ?? 0) + 1;
+      nameCount.set(baseName, currentCount);
+      const uniqueName = currentCount > 1 ? `${baseName} (${currentCount})` : baseName;
+
+      return {
+        id: doctorId,
+        name: uniqueName,
+        completed: entry.completed,
+        hours: Number(entry.hours.toFixed(1)),
+      };
+    });
 
     const activePaidExpenses = expenses.filter(
       (e) => !archivedExpenseIds.has(e.id) && (e.status ?? "Paid") === "Paid",

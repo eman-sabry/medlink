@@ -1,61 +1,67 @@
-// Pleasant two-tone chime for clinic notifications using Web Audio API
+// Pleasant two-tone chime for clinic notifications using safe Web Audio API or no-op
 const SOUND_STORAGE_KEY = "medlink_notification_sound_enabled";
 
-class NotificationAudioEngine {
-  constructor() {
-    this.audioCtx = null;
-    this.soundEnabled = this.getStoredSoundPreference();
+let soundEnabled = true;
+try {
+  if (typeof localStorage !== "undefined") {
+    const val = localStorage.getItem(SOUND_STORAGE_KEY);
+    soundEnabled = val === null ? true : val === "true";
   }
+} catch {
+  soundEnabled = true;
+}
 
-  getStoredSoundPreference() {
-    try {
-      const val = localStorage.getItem(SOUND_STORAGE_KEY);
-      return val === null ? true : val === "true";
-    } catch {
-      return true;
+let audioCtx = null;
+let audioDisabled = false;
+
+function getSafeAudioContext() {
+  if (audioDisabled || typeof window === "undefined") return null;
+  if (audioCtx) return audioCtx;
+
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (typeof AudioCtx === "function" && AudioCtx.prototype) {
+      audioCtx = new AudioCtx();
+      return audioCtx;
     }
+  } catch {
+    audioDisabled = true;
   }
+  return null;
+}
 
+export const notificationAudio = {
+  getStoredSoundPreference() {
+    return soundEnabled;
+  },
   setSoundEnabled(enabled) {
-    this.soundEnabled = Boolean(enabled);
+    soundEnabled = Boolean(enabled);
     try {
-      localStorage.setItem(SOUND_STORAGE_KEY, String(this.soundEnabled));
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(SOUND_STORAGE_KEY, String(soundEnabled));
+      }
     } catch {
       // ignore
     }
-    return this.soundEnabled;
-  }
-
+    return soundEnabled;
+  },
   isSoundEnabled() {
-    return this.soundEnabled;
-  }
-
-  initContext() {
-    if (typeof window === "undefined") return null;
-    if (!this.audioCtx) {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (AudioContextClass) {
-        this.audioCtx = new AudioContextClass();
-      }
-    }
-    if (this.audioCtx && this.audioCtx.state === "suspended") {
-      this.audioCtx.resume().catch(() => {});
-    }
-    return this.audioCtx;
-  }
-
+    return soundEnabled;
+  },
   playChime(type = "info") {
-    if (!this.soundEnabled) return;
+    if (!soundEnabled || audioDisabled) return;
     try {
-      const ctx = this.initContext();
+      const ctx = getSafeAudioContext();
       if (!ctx) return;
 
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+
       const now = ctx.currentTime;
-      
-      // Determine tone frequencies based on notification severity
       let firstFreq = 587.33; // D5
       let secondFreq = 880.00; // A5
-      
+
       if (type === "warning") {
         firstFreq = 659.25; // E5
         secondFreq = 523.25; // C5
@@ -67,7 +73,6 @@ class NotificationAudioEngine {
         secondFreq = 783.99; // G5
       }
 
-      // First tone
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = "sine";
@@ -82,7 +87,6 @@ class NotificationAudioEngine {
       osc1.start(now);
       osc1.stop(now + 0.35);
 
-      // Second tone (slightly overlapping, higher harmonic)
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
       osc2.type = "sine";
@@ -96,16 +100,18 @@ class NotificationAudioEngine {
       gain2.connect(ctx.destination);
       osc2.start(now + 0.12);
       osc2.stop(now + 0.6);
-    } catch (err) {
-      console.warn("Could not play notification chime:", err);
+    } catch {
+      // Audio playback safely ignored
     }
-  }
-}
-
-export const notificationAudio = new NotificationAudioEngine();
+  },
+};
 
 export function playNotificationChime(type = "info") {
-  notificationAudio.playChime(type);
+  try {
+    notificationAudio.playChime(type);
+  } catch {
+    // ignore
+  }
 }
 
 export function isNotificationSoundEnabled() {

@@ -1,102 +1,41 @@
-// Specialized Live Operations Audio Engine using Web Audio API
+// Specialized Live Operations Audio Engine using safe Web Audio API or no-op
 // Distinct, energetic, and recognizable multi-tone chimes for real-time clinic operations.
 
 const LIVE_SOUND_STORAGE_KEY = "medlink_live_operations_sound_enabled";
 
-class LiveAudioEngine {
-  constructor() {
-    this.audioCtx = null;
-    this.soundEnabled = this.getStoredSoundPreference();
-    this.lastPlayedTime = 0;
+let soundEnabled = true;
+try {
+  if (typeof localStorage !== "undefined") {
+    const val = localStorage.getItem(LIVE_SOUND_STORAGE_KEY);
+    soundEnabled = val === null ? true : val === "true";
   }
+} catch {
+  soundEnabled = true;
+}
 
-  getStoredSoundPreference() {
+let audioCtx = null;
+let audioDisabled = false;
+let lastPlayedTime = 0;
+
+function getSafeAudioContext() {
+  if (audioDisabled || typeof window === "undefined") return null;
+  if (audioCtx) return audioCtx;
+
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (typeof AudioCtx === "function" && AudioCtx.prototype) {
+      audioCtx = new AudioCtx();
+      return audioCtx;
+    }
+  } catch {
+    audioDisabled = true;
+  }
+  return null;
+}
+
+function playToneSequence(ctx, baseTime, tones) {
+  tones.forEach((tone) => {
     try {
-      const val = localStorage.getItem(LIVE_SOUND_STORAGE_KEY);
-      return val === null ? true : val === "true";
-    } catch {
-      return true;
-    }
-  }
-
-  setSoundEnabled(enabled) {
-    this.soundEnabled = Boolean(enabled);
-    try {
-      localStorage.setItem(LIVE_SOUND_STORAGE_KEY, String(this.soundEnabled));
-    } catch {
-      // ignore storage error
-    }
-    return this.soundEnabled;
-  }
-
-  isSoundEnabled() {
-    return this.soundEnabled;
-  }
-
-  toggleSound() {
-    return this.setSoundEnabled(!this.soundEnabled);
-  }
-
-  initContext() {
-    if (typeof window === "undefined") return null;
-    if (!this.audioCtx) {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (AudioContextClass) {
-        this.audioCtx = new AudioContextClass();
-      }
-    }
-    if (this.audioCtx && this.audioCtx.state === "suspended") {
-      this.audioCtx.resume().catch(() => {});
-    }
-    return this.audioCtx;
-  }
-
-  /**
-   * Plays a distinct, energetic Live Operations sound based on event priority.
-   * @param {"normal" | "important" | "critical"} priority
-   */
-  playLiveChime(priority = "important") {
-    if (!this.soundEnabled) return;
-
-    // Prevent audio overlap if triggered rapidly within 150ms
-    const nowMs = Date.now();
-    if (nowMs - this.lastPlayedTime < 150) return;
-    this.lastPlayedTime = nowMs;
-
-    try {
-      const ctx = this.initContext();
-      if (!ctx) return;
-
-      const now = ctx.currentTime;
-
-      if (priority === "critical") {
-        // Distinct energetic 3-tone attention chime (F#5 -> A5 -> D6)
-        this.playToneSequence(ctx, now, [
-          { freq: 739.99, start: 0.0, duration: 0.12, gain: 0.22, type: "sine" },
-          { freq: 880.00, start: 0.09, duration: 0.14, gain: 0.24, type: "sine" },
-          { freq: 1174.66, start: 0.20, duration: 0.35, gain: 0.26, type: "triangle" },
-        ]);
-      } else if (priority === "important") {
-        // Energetic rising 3-tone chime (C5 -> E5 -> C6) - Bright & optimistic
-        this.playToneSequence(ctx, now, [
-          { freq: 523.25, start: 0.0, duration: 0.10, gain: 0.18, type: "sine" },
-          { freq: 659.25, start: 0.08, duration: 0.12, gain: 0.22, type: "sine" },
-          { freq: 1046.50, start: 0.17, duration: 0.32, gain: 0.25, type: "sine" },
-        ]);
-      } else {
-        // Normal live event: crisp, snappy rising 2-tone chime (E5 -> B5)
-        this.playToneSequence(ctx, now, [
-          { freq: 659.25, start: 0.0, duration: 0.10, gain: 0.16, type: "sine" },
-          { freq: 987.77, start: 0.08, duration: 0.28, gain: 0.20, type: "sine" },
-        ]);
-      }
-    } catch (err) {
-      console.warn("Could not play Live Operations sound:", err);
-    }
-  }
-
-  playToneSequence(ctx, baseTime, tones) {
-    tones.forEach((tone) => {
       const osc = ctx.createOscillator();
       const gainNode = ctx.createGain();
 
@@ -115,14 +54,80 @@ class LiveAudioEngine {
 
       osc.start(startTime);
       osc.stop(endTime);
-    });
-  }
+    } catch {
+      // ignore tone error
+    }
+  });
 }
 
-export const liveAudioEngine = new LiveAudioEngine();
+export const liveAudioEngine = {
+  getStoredSoundPreference() {
+    return soundEnabled;
+  },
+  setSoundEnabled(enabled) {
+    soundEnabled = Boolean(enabled);
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(LIVE_SOUND_STORAGE_KEY, String(soundEnabled));
+      }
+    } catch {
+      // ignore
+    }
+    return soundEnabled;
+  },
+  isSoundEnabled() {
+    return soundEnabled;
+  },
+  toggleSound() {
+    return this.setSoundEnabled(!soundEnabled);
+  },
+  playLiveChime(priority = "important") {
+    if (!soundEnabled || audioDisabled) return;
+
+    const nowMs = Date.now();
+    if (nowMs - lastPlayedTime < 150) return;
+    lastPlayedTime = nowMs;
+
+    try {
+      const ctx = getSafeAudioContext();
+      if (!ctx) return;
+
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+
+      const now = ctx.currentTime;
+
+      if (priority === "critical") {
+        playToneSequence(ctx, now, [
+          { freq: 739.99, start: 0.0, duration: 0.12, gain: 0.22, type: "sine" },
+          { freq: 880.00, start: 0.09, duration: 0.14, gain: 0.24, type: "sine" },
+          { freq: 1174.66, start: 0.20, duration: 0.35, gain: 0.26, type: "triangle" },
+        ]);
+      } else if (priority === "important") {
+        playToneSequence(ctx, now, [
+          { freq: 523.25, start: 0.0, duration: 0.10, gain: 0.18, type: "sine" },
+          { freq: 659.25, start: 0.08, duration: 0.12, gain: 0.22, type: "sine" },
+          { freq: 1046.50, start: 0.17, duration: 0.32, gain: 0.25, type: "sine" },
+        ]);
+      } else {
+        playToneSequence(ctx, now, [
+          { freq: 659.25, start: 0.0, duration: 0.10, gain: 0.16, type: "sine" },
+          { freq: 987.77, start: 0.08, duration: 0.28, gain: 0.20, type: "sine" },
+        ]);
+      }
+    } catch {
+      // ignore
+    }
+  },
+};
 
 export function playLiveChime(priority = "important") {
-  liveAudioEngine.playLiveChime(priority);
+  try {
+    liveAudioEngine.playLiveChime(priority);
+  } catch {
+    // ignore
+  }
 }
 
 export function isLiveSoundEnabled() {

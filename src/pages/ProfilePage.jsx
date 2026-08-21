@@ -1,5 +1,23 @@
 import { useState } from "react";
-import { Loader2, Lock, Mail, Phone, Save, User, Bell, Volume2, VolumeX, Volume1 } from "lucide-react";
+import {
+  Loader2,
+  Mail,
+  Phone,
+  Save,
+  User,
+  Lock,
+  Bell,
+  Volume2,
+  VolumeX,
+  Volume1,
+  Laptop,
+  Smartphone,
+  Globe,
+  ShieldAlert,
+  LogOut,
+  CheckCircle2,
+  RefreshCw,
+} from "lucide-react";
 import { useProfile } from "../hooks/useProfile";
 import { ROLE_LABELS } from "../permissions/roles";
 import { toast } from "../utils/toast";
@@ -7,15 +25,27 @@ import { useNotifications } from "../hooks/useNotifications";
 import { playNotificationChime } from "../utils/notificationSound";
 
 export default function ProfilePage() {
-  const { user, updateProfile, isUpdatingProfile, changePassword, isChangingPassword } =
-    useProfile();
+  const {
+    user,
+    updateProfile,
+    isUpdatingProfile,
+    changePassword,
+    isChangingPassword,
+    sessions,
+    isLoadingSessions,
+    refetchSessions,
+    deleteSession,
+    isDeletingSession,
+    logoutAll,
+    isLoggingOutAll,
+  } = useProfile();
   const { isSoundEnabled, toggleSound } = useNotifications();
 
-  const [profileForm, setProfileForm] = useState({
-    full_name: user?.full_name ?? "",
-    email: user?.email ?? "",
-    phone: user?.phone ?? "",
-  });
+  const [formOverrides, setFormOverrides] = useState({});
+
+  const fullNameValue = formOverrides.full_name ?? user?.full_name ?? "";
+  const emailValue = formOverrides.email ?? user?.email ?? "";
+  const phoneValue = formOverrides.phone ?? user?.phone ?? "";
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -25,7 +55,11 @@ export default function ProfilePage() {
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
-    await updateProfile(profileForm);
+    await updateProfile({
+      full_name: fullNameValue,
+      email: emailValue,
+      phone: phoneValue,
+    });
   };
 
   const handlePasswordSubmit = async (e) => {
@@ -65,9 +99,9 @@ export default function ProfilePage() {
             </label>
             <input
               type="text"
-              value={profileForm.full_name}
+              value={fullNameValue}
               onChange={(e) =>
-                setProfileForm((prev) => ({ ...prev, full_name: e.target.value }))
+                setFormOverrides((prev) => ({ ...prev, full_name: e.target.value }))
               }
               required
               className="w-full h-12 rounded-2xl border border-border bg-background px-4 text-sm text-foreground focus:outline-hidden focus:border-primary transition-all shadow-xs"
@@ -79,9 +113,9 @@ export default function ProfilePage() {
             </label>
             <input
               type="email"
-              value={profileForm.email}
+              value={emailValue}
               onChange={(e) =>
-                setProfileForm((prev) => ({ ...prev, email: e.target.value }))
+                setFormOverrides((prev) => ({ ...prev, email: e.target.value }))
               }
               required
               className="w-full h-12 rounded-2xl border border-border bg-background px-4 text-sm text-foreground focus:outline-hidden focus:border-primary transition-all shadow-xs"
@@ -93,10 +127,11 @@ export default function ProfilePage() {
             </label>
             <input
               type="text"
-              value={profileForm.phone}
+              value={phoneValue}
               onChange={(e) =>
-                setProfileForm((prev) => ({ ...prev, phone: e.target.value }))
+                setFormOverrides((prev) => ({ ...prev, phone: e.target.value }))
               }
+              placeholder="مثال: 010907887"
               className="w-full h-12 rounded-2xl border border-border bg-background px-4 text-sm text-foreground focus:outline-hidden focus:border-primary transition-all shadow-xs"
             />
           </div>
@@ -151,6 +186,146 @@ export default function ProfilePage() {
           <span>تغيير كلمة المرور</span>
         </button>
       </form>
+
+      {/* Active Sessions Card */}
+      <div className="bg-card border border-border rounded-3xl p-6 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Globe className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-foreground text-sm">الجلسات والأجهزة المتصلة</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                إدارة الجلسات المفتوحة بحسابك على مختلف الأجهزة
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => refetchSessions()}
+              disabled={isLoadingSessions}
+              className="p-2 rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+              title="تحديث الجلسات"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoadingSessions ? "animate-spin" : ""}`} />
+            </button>
+            {sessions.length > 1 && (
+              <button
+                type="button"
+                onClick={() => logoutAll()}
+                disabled={isLoggingOutAll}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-bold transition-all cursor-pointer"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span>إنهاء كل الجلسات</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="pt-2 border-t border-border/50 space-y-3">
+          {isLoadingSessions ? (
+            <div className="flex items-center justify-center py-6 text-muted-foreground gap-2 text-xs">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>جاري تحميل الجلسات...</span>
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="text-xs text-muted-foreground text-center py-4">
+              لا توجد جلسات أخرى مسجلة
+            </div>
+          ) : (
+            sessions.map((sess, idx) => {
+              const id = sess.sessionId || sess.id;
+              const isCurrent = Boolean(sess.current || sess.isCurrent);
+              const formatSafeDate = (d) => {
+                if (!d) return null;
+                try {
+                  const normalized = String(d).trim().replace(" ", "T");
+                  const dateObj = new Date(normalized);
+                  return isNaN(dateObj.getTime()) ? String(d) : dateObj.toLocaleString("ar-EG");
+                } catch {
+                  return String(d);
+                }
+              };
+
+              const formattedCreated = formatSafeDate(sess.createdAt);
+              const formattedExpires = formatSafeDate(sess.expiresAt);
+
+              return (
+                <div
+                  key={id || `sess_key_${idx}`}
+                  className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
+                    isCurrent
+                      ? "bg-primary/5 border-primary/30"
+                      : sess.compromised
+                      ? "bg-amber-500/5 border-amber-500/30"
+                      : sess.revoked
+                      ? "bg-muted/30 border-border/40 opacity-75"
+                      : "bg-muted/40 border-border/60"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-background border border-border flex items-center justify-center text-primary shrink-0">
+                      {sess.userAgent?.toLowerCase().includes("mobile") ? (
+                        <Smartphone className="h-4 w-4" />
+                      ) : (
+                        <Laptop className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-foreground">
+                          {isCurrent ? "الجلسة الحالية" : `جلسة #${String(id).slice(0, 8)}`}
+                        </span>
+                        {isCurrent && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                            <CheckCircle2 className="h-3 w-3" /> نشط الآن
+                          </span>
+                        )}
+                        {sess.compromised && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                            <ShieldAlert className="h-3 w-3" /> مشبوهة
+                          </span>
+                        )}
+                        {sess.revoked && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-destructive/10 text-destructive border border-destructive/20">
+                            <ShieldAlert className="h-3 w-3" /> ملغاة
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                        {formattedCreated && (
+                          <span>بدأت: {formattedCreated}</span>
+                        )}
+                        {formattedExpires && !sess.revoked && (
+                          <span className="text-[10px] opacity-75">تنتهي: {formattedExpires}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {!isCurrent && !sess.revoked && id && (
+                    <button
+                      type="button"
+                      onClick={() => deleteSession(id)}
+                      disabled={isDeletingSession}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                    >
+                      {isDeletingSession ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <LogOut className="h-3.5 w-3.5" />
+                      )}
+                      <span>إنهاء الجلسة</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
 
       {/* Notification Preferences Card */}
       <div className="bg-card border border-border rounded-3xl p-6 space-y-4 shadow-sm">
@@ -218,3 +393,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

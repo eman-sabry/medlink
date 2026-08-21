@@ -20,8 +20,8 @@ import { ROLE_LABELS } from "../permissions/roles";
 import { formatDate } from "../utils/date";
 
 export default function TeamPage() {
-  const { role } = useAuth();
-  const canManage = hasPermission(role, "team:manage");
+  const { user, role } = useAuth();
+  const canManage = hasPermission(user || role, "team:manage");
 
   const {
     teamMembers,

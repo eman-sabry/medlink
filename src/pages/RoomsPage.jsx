@@ -26,8 +26,8 @@ import {
 } from "lucide-react";
 
 export default function RoomsPage() {
-  const { role } = useAuth();
-  const canManage = hasPermission(role, "rooms:manage");
+  const { user, role } = useAuth();
+  const canManage = hasPermission(user || role, "rooms:manage");
 
   const {
     rooms,

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import process from "node:process";
+import { Buffer } from "node:buffer";
 
 const DB_PATH = path.resolve(process.cwd(), "db.json");
 
@@ -49,8 +50,12 @@ export function createApiMiddleware() {
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
     let pathname = url.pathname;
 
-    // Remove /api prefix if present
-    if (pathname.startsWith("/api/")) {
+    // Normalize pathname for /api/v1, /api, /v1
+    if (pathname.startsWith("/api/v1/")) {
+      pathname = pathname.slice(7);
+    } else if (pathname.startsWith("/v1/")) {
+      pathname = pathname.slice(3);
+    } else if (pathname.startsWith("/api/")) {
       pathname = pathname.slice(4);
     } else if (pathname === "/api") {
       pathname = "/";
@@ -98,6 +103,89 @@ export function createApiMiddleware() {
     };
 
     const method = req.method.toUpperCase();
+
+    // Helper for remote backend proxying
+    const remoteBackendUrl = (process.env.BACKEND_URL || "https://lanwan.seifeldeendev.com").replace(/\/+$/, "");
+    const forwardToRemote = async (subPath, reqMethod, reqBody) => {
+      if (!remoteBackendUrl) return null;
+      try {
+        const fullUrl = `${remoteBackendUrl}/api/v1${subPath.startsWith("/") ? subPath : `/${subPath}`}`;
+        const headers = {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        };
+        if (req.headers.authorization) {
+          headers.Authorization = req.headers.authorization;
+        }
+        if (req.headers["x-csrf-token"]) {
+          headers["X-CSRF-Token"] = req.headers["x-csrf-token"];
+        }
+        if (req.headers["x-branch-id"]) {
+          headers["X-Branch-Id"] = req.headers["x-branch-id"];
+        } else {
+          headers["X-Branch-Id"] = "b1000000-1111-4111-8111-111111111111";
+        }
+
+        let payload = undefined;
+        if (reqMethod === "POST" || reqMethod === "PUT" || reqMethod === "PATCH") {
+          if (reqBody === undefined || reqBody === null || (typeof reqBody === "string" && reqBody.trim() === "")) {
+            payload = "{}";
+          } else if (typeof reqBody === "object") {
+            payload = JSON.stringify(reqBody);
+          } else {
+            payload = String(reqBody);
+          }
+        }
+
+        const resObj = await fetch(fullUrl, {
+          method: reqMethod,
+          headers,
+          body: payload,
+        });
+
+        const json = await resObj.json().catch(() => null);
+        if (resObj.status >= 500 || json?.error?.code === "APPLICATION_BOOTSTRAP_FAILED") {
+          return null;
+        }
+        return { status: resObj.status, ok: resObj.ok, data: json };
+      } catch {
+        return null;
+      }
+    };
+
+
+    // 0. AUTHENTICATION ENDPOINTS (Strictly forwarded to Real Backend)
+    if (collectionRaw === "auth") {
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+
+      (async () => {
+        const body = (method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE")
+          ? await readBody()
+          : undefined;
+
+        const authSubPath = `/${pathname}${url.search || ""}`;
+        const remoteRes = await forwardToRemote(authSubPath, method, body);
+
+        if (remoteRes && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
+        }
+
+        // Real backend unreachable
+        res.statusCode = 503;
+        return res.end(
+          JSON.stringify({
+            success: false,
+            error: {
+              code: "BACKEND_UNAVAILABLE",
+              message: "تعذر الاتصال بخادم المصادقة الرئيسي (Backend Unavailable)",
+            },
+            requestId: crypto.randomUUID(),
+          })
+        );
+      })();
+      return;
+    }
 
     // Map entity_type to corresponding db collection key
     const entityCollectionMap = {
@@ -509,63 +597,84 @@ export function createApiMiddleware() {
 
     res.setHeader("Content-Type", "application/json; charset=utf-8");
 
+    const remoteSubPath = `/${collectionRaw}${targetId ? `/${targetId}` : ""}${action ? `/${action}` : ""}${url.search || ""}`;
+
     if (method === "GET") {
-      if (targetId) {
-        const item = collection.find(
-          (x) => String(x.id) === String(targetId)
-        );
-        if (!item) {
-          res.statusCode = 404;
-          return res.end(JSON.stringify({ error: "Item not found" }));
+      (async () => {
+        // 1. Prioritize Real Remote Backend
+        const remoteRes = await forwardToRemote(remoteSubPath, "GET");
+        if (remoteRes && remoteRes.ok && remoteRes.status < 400 && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
         }
-        return res.end(JSON.stringify(item));
-      }
 
-      // Filter by query parameters
-      let results = [...collection];
-      for (const [key, value] of url.searchParams.entries()) {
-        if (key.startsWith("_")) continue; // ignore _sort, _limit, etc for base filtering
-        results = results.filter((item) => {
-          if (item[key] === undefined) return false;
-          const itemVal = item[key];
-          if (typeof itemVal === "number") {
-            return Number(itemVal) === Number(value);
+        // 2. Fallback to Local DB if backend is unavailable / unbootstrapped
+        if (targetId) {
+          const item = collection.find(
+            (x) => String(x.id) === String(targetId)
+          );
+          if (!item) {
+            res.statusCode = 404;
+            return res.end(JSON.stringify({ error: "Item not found" }));
           }
-          if (typeof itemVal === "boolean") {
+          return res.end(JSON.stringify(item));
+        }
+
+        // Filter by query parameters
+        let results = [...collection];
+        for (const [key, value] of url.searchParams.entries()) {
+          if (key.startsWith("_")) continue; // ignore _sort, _limit, etc for base filtering
+          results = results.filter((item) => {
+            if (item[key] === undefined) return false;
+            const itemVal = item[key];
+            if (typeof itemVal === "number") {
+              return Number(itemVal) === Number(value);
+            }
+            if (typeof itemVal === "boolean") {
+              return String(itemVal) === String(value);
+            }
             return String(itemVal) === String(value);
-          }
-          return String(itemVal) === String(value);
-        });
-      }
+          });
+        }
 
-      // Support _sort and _order
-      const sortField = url.searchParams.get("_sort");
-      const sortOrder = url.searchParams.get("_order") || "asc";
-      if (sortField) {
-        results.sort((a, b) => {
-          const valA = a[sortField] ?? "";
-          const valB = b[sortField] ?? "";
-          if (valA < valB) return sortOrder === "desc" ? 1 : -1;
-          if (valA > valB) return sortOrder === "desc" ? -1 : 1;
-          return 0;
-        });
-      }
+        // Support _sort and _order
+        const sortField = url.searchParams.get("_sort");
+        const sortOrder = url.searchParams.get("_order") || "asc";
+        if (sortField) {
+          results.sort((a, b) => {
+            const valA = a[sortField] ?? "";
+            const valB = b[sortField] ?? "";
+            if (valA < valB) return sortOrder === "desc" ? 1 : -1;
+            if (valA > valB) return sortOrder === "desc" ? -1 : 1;
+            return 0;
+          });
+        }
 
-      // Support _limit and _page
-      const limitParam = url.searchParams.get("_limit");
-      const pageParam = url.searchParams.get("_page");
-      if (limitParam) {
-        const limit = parseInt(limitParam, 10);
-        const page = pageParam ? parseInt(pageParam, 10) : 1;
-        const start = (page - 1) * limit;
-        results = results.slice(start, start + limit);
-      }
+        // Support _limit and _page
+        const limitParam = url.searchParams.get("_limit");
+        const pageParam = url.searchParams.get("_page");
+        if (limitParam) {
+          const limit = parseInt(limitParam, 10);
+          const page = pageParam ? parseInt(pageParam, 10) : 1;
+          const start = (page - 1) * limit;
+          results = results.slice(start, start + limit);
+        }
 
-      return res.end(JSON.stringify(results));
+        return res.end(JSON.stringify(results));
+      })();
+      return;
     }
 
     if (method === "POST") {
-      readBody().then((body) => {
+      readBody().then(async (body) => {
+        // 1. Prioritize Real Remote Backend
+        const remoteRes = await forwardToRemote(remoteSubPath, "POST", body);
+        if (remoteRes && remoteRes.ok && remoteRes.status < 400 && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
+        }
+
+        // 2. Fallback to Local DB
         const newItem = {
           id: body.id || (collection.length > 0 && typeof collection[0]?.id === "number" ? Math.max(...collection.map((i) => (typeof i.id === "number" ? i.id : 0)), 0) + 1 : crypto.randomUUID()),
           ...body,
@@ -583,7 +692,15 @@ export function createApiMiddleware() {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: "Missing ID for PUT" }));
       }
-      readBody().then((body) => {
+      readBody().then(async (body) => {
+        // 1. Prioritize Real Remote Backend
+        const remoteRes = await forwardToRemote(remoteSubPath, "PUT", body);
+        if (remoteRes && remoteRes.ok && remoteRes.status < 400 && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
+        }
+
+        // 2. Fallback to Local DB
         const index = collection.findIndex(
           (x) => String(x.id) === String(targetId)
         );
@@ -605,7 +722,15 @@ export function createApiMiddleware() {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: "Missing ID for PATCH" }));
       }
-      readBody().then((body) => {
+      readBody().then(async (body) => {
+        // 1. Prioritize Real Remote Backend
+        const remoteRes = await forwardToRemote(remoteSubPath, "PATCH", body);
+        if (remoteRes && remoteRes.ok && remoteRes.status < 400 && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
+        }
+
+        // 2. Fallback to Local DB
         const index = collection.findIndex(
           (x) => String(x.id) === String(targetId)
         );
@@ -625,15 +750,25 @@ export function createApiMiddleware() {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: "Missing ID for DELETE" }));
       }
-      const index = collection.findIndex(
-        (x) => String(x.id) === String(targetId)
-      );
-      if (index !== -1) {
-        collection.splice(index, 1);
-        saveDb();
-      }
-      res.statusCode = 200;
-      res.end(JSON.stringify({ success: true }));
+      (async () => {
+        // 1. Prioritize Real Remote Backend
+        const remoteRes = await forwardToRemote(remoteSubPath, "DELETE");
+        if (remoteRes && remoteRes.ok && remoteRes.status < 400 && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
+        }
+
+        // 2. Fallback to Local DB
+        const index = collection.findIndex(
+          (x) => String(x.id) === String(targetId)
+        );
+        if (index !== -1) {
+          collection.splice(index, 1);
+          saveDb();
+        }
+        res.statusCode = 200;
+        res.end(JSON.stringify({ success: true }));
+      })();
       return;
     }
 

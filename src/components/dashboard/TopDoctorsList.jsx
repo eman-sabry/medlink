@@ -81,10 +81,11 @@ export function TopDoctorsList({ doctors = [] }) {
             {topThree.slice(1).map((doctor, idx) => {
               const actualRank = idx + 2; 
               const isSecond = actualRank === 2;
+              const uniqueKey = doctor.id || `${doctor.name}-${actualRank}`;
 
               return (
                 <motion.div
-                  key={doctor.name || actualRank}
+                  key={uniqueKey}
                   initial={{ opacity: 0, y: 10 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
@@ -128,9 +129,10 @@ export function TopDoctorsList({ doctors = [] }) {
             <ul className="space-y-2.5 pt-2 border-t border-border/50">
               {remainingDoctors.map((doctor, index) => {
                 const rank = index + 4;
+                const uniqueKey = doctor.id || `${doctor.name}-${rank}`;
                 return (
                   <motion.li
-                    key={doctor.name || rank}
+                    key={uniqueKey}
                     initial={{ opacity: 0, x: 8 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}

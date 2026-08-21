@@ -27,7 +27,6 @@ export function usePatients() {
         gcTime: 1000 * 60 * 10,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
-        refetchOnMount: false,
     });
 
     const addMutation = useMutation({

@@ -37,11 +37,15 @@ export function AppointmentDetailsModal({ isOpen, appointment, onClose }) {
   const formatDate = (isoString) => {
     const date = parseDate(isoString);
     if (!date) return isoString || "-";
-    return new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(date);
+    try {
+      return date.toLocaleDateString("ar-EG-u-nu-latn", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+    } catch {
+      return date.toLocaleDateString() || "-";
+    }
   };
 
   const patientName = appointment.patient_name || appointment.patient_id || "-";
