@@ -91,7 +91,8 @@ apiClient.interceptors.response.use(
         const newToken = res.data?.data?.accessToken || res.data?.data?.token || res.data?.token;
         if (newToken) {
           localStorage.setItem("medlink_token", newToken);
-          apiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+          // Removed: apiClient.defaults.headers.common.Authorization
+          // Rely entirely on the request interceptor reading from localStorage dynamically
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           processQueue(null, newToken);
           return apiClient(originalRequest);

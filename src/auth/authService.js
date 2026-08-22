@@ -14,13 +14,17 @@ function sanitizeUser(user) {
 }
 
 export function normalizeRole(role) {
-  const r = String(role || "Doctor").toLowerCase();
-  if (r === "owner" || r === "admin") return "Owner";
-  if (r === "secretary" || r === "receptionist") return "Secretary";
-  return "Doctor";
+  if (role) {
+    const r = String(role).trim().toLowerCase();
+    if (r === "owner" || r === "admin") return "Owner";
+    if (r === "secretary" || r === "receptionist") return "Secretary";
+    if (r === "doctor" || r === "clinician") return "Doctor";
+    return role; // Return the backend's raw role if unknown
+  }
+  return null; // Do NOT default to Owner or guess from email
 }
 
-function parseUserData(raw, fallbackIdentifier = "") {
+function parseUserData(raw) {
   if (!raw) return null;
   const data = raw.data || raw;
   const subUser = data.user || {};
@@ -28,10 +32,11 @@ function parseUserData(raw, fallbackIdentifier = "") {
   const staffObj = data.staff || {};
 
   const roles = authInfo.roles || (data.roles ? (Array.isArray(data.roles) ? data.roles : [data.roles]) : []);
-  const role = normalizeRole(roles[0] || data.role || subUser.role);
+  const rawRole = roles[0] || data.role || subUser.role;
+  const role = normalizeRole(rawRole);
 
-  const email = subUser.email || data.email || (fallbackIdentifier.includes("@") ? fallbackIdentifier : "");
-  const username = subUser.username || data.username || (email ? email.split("@")[0] : fallbackIdentifier || "user");
+  const email = subUser.email || data.email || "";
+  const username = subUser.username || data.username || (email ? email.split("@")[0] : "user");
   const fullName =
     subUser.fullName ||
     subUser.full_name ||
@@ -39,7 +44,7 @@ function parseUserData(raw, fallbackIdentifier = "") {
     data.full_name ||
     data.fullName ||
     data.name ||
-    (role === "Owner" ? "مالك المركز" : username);
+    "مستخدم";
 
   const phone = subUser.phone || staffObj.phone || data.phone || "";
   const staffId = staffObj.staffId || data.staffId || data.staff_id || subUser.staffId || null;
@@ -60,35 +65,11 @@ function parseUserData(raw, fallbackIdentifier = "") {
     staff_id: staffId,
     clinicianId,
     permissions: authInfo.permissions || data.permissions || [],
-    roles: roles.length ? roles : [role],
+    roles: roles.length ? roles : role ? [role] : [],
     currentSessionId,
     branches: data.branches || null,
     securityVersion: subUser.securityVersion || data.securityVersion || null,
   });
-}
-
-async function fallbackLocalUserLogin(identifier, password) {
-  const allUsers = await apiRequest("/users");
-  const idLower = identifier.toLowerCase();
-  const found = Array.isArray(allUsers)
-    ? allUsers.find((u) => {
-        const uEmail = (u.email || "").trim().toLowerCase();
-        const uName = (u.username || "").trim().toLowerCase();
-        return uEmail === idLower || uName === idLower;
-      })
-    : null;
-
-  if (!found || found.password !== password) {
-    throw new Error("اسم المستخدم أو كلمة المرور غير صحيحة");
-  }
-
-  if (found.status && found.status.toLowerCase() !== "active") {
-    throw new Error("هذا الحساب غير مفعّل، يرجى التواصل مع إدارة النظام");
-  }
-
-  const user = sanitizeUser(found);
-  const token = "jwt_" + btoa(JSON.stringify({ id: user.id, email: user.email, role: user.role, time: Date.now() }));
-  return { user, token };
 }
 
 export async function login(identifier, password) {
@@ -99,10 +80,10 @@ export async function login(identifier, password) {
     throw new Error("يرجى إدخال اسم المستخدم أو البريد الإلكتروني وكلمة المرور");
   }
 
-  let user = null;
-  let token = null;
-  let sessionId = null;
-  let expiresIn = null;
+  const response = await apiRequest("/api/v1/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: trimmed, username: trimmed, password: cleanPassword }),
+  });
 
   try {
     const response = await apiRequest("/auth/login", {
@@ -110,25 +91,35 @@ export async function login(identifier, password) {
       body: JSON.stringify({ email: trimmed, username: trimmed, password: cleanPassword }),
     });
 
-    if (response) {
-      const dataObj = response.data || response;
-      token = dataObj.token || dataObj.accessToken || dataObj.access_token || response.token || null;
-      sessionId = dataObj.sessionId || response.sessionId || null;
-      expiresIn = dataObj.expiresIn || response.expiresIn || null;
-      user = parseUserData(response, trimmed);
-    }
-  } catch (apiErr) {
-    if (apiErr.status === 404 || apiErr.message?.includes("404")) {
-      const fallback = await fallbackLocalUserLogin(trimmed, cleanPassword);
-      user = fallback.user;
-      token = fallback.token;
-    } else {
-      throw apiErr;
-    }
+  const dataObj = response.data || response;
+  const token = dataObj.token || dataObj.accessToken || dataObj.access_token || response.token || null;
+  const sessionId = dataObj.sessionId || response.sessionId || null;
+  const expiresIn = dataObj.expiresIn || response.expiresIn || null;
+
+  if (!token) {
+    throw new Error("فشل تسجيل الدخول: لم يتم استلام رمز المصادقة من الخادم");
   }
 
-  if (!user) {
-    throw new Error("فشل تسجيل الدخول: لم يتم استلام بيانات الحساب");
+  // Persist token immediately so getMe() and subsequent requests have Authorization header
+  localStorage.setItem(TOKEN_KEY, token);
+  if (sessionId) {
+    localStorage.setItem(SESSION_ID_KEY, sessionId);
+  }
+
+  let user = parseUserData(response); // initial extraction (mostly just userId, since /login rarely returns full profile)
+
+  // Fetch full profile from getMe() synchronously to ensure role & permissions are accurate
+  try {
+    const serverUser = await getMe();
+    if (!serverUser) {
+      throw new Error("لم يتمكن الخادم من توفير بيانات الملف الشخصي (getMe returned null)");
+    }
+    user = { ...user, ...serverUser };
+  } catch (err) {
+    // If getMe fails, the login must fail. Zero fallbacks allowed.
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(SESSION_ID_KEY);
+    throw new Error(`فشل في جلب بيانات الحساب: ${err.message}`);
   }
 
   saveSession(user, token, sessionId, expiresIn);
@@ -150,10 +141,6 @@ export async function getMe() {
     if (homeBranch && !localStorage.getItem("medlink_branch_id")) {
       localStorage.setItem("medlink_branch_id", homeBranch);
     }
-  }
-
-  if (normalizedUser.currentSessionId) {
-    localStorage.setItem(SESSION_ID_KEY, normalizedUser.currentSessionId);
   }
 
   updateLocalSessionUser(normalizedUser);
@@ -245,30 +232,6 @@ export async function logoutAll() {
   }
 }
 
-export function getLocalRevokedSessionIds() {
-  try {
-    const raw = localStorage.getItem(REVOKED_SESSIONS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.map((id) => String(id).trim().toLowerCase()) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function addLocalRevokedSessionId(id) {
-  if (!id) return;
-  try {
-    const normalized = String(id).trim().toLowerCase();
-    const list = getLocalRevokedSessionIds();
-    if (!list.includes(normalized)) {
-      list.push(normalized);
-      localStorage.setItem(REVOKED_SESSIONS_KEY, JSON.stringify(list));
-    }
-  } catch {
-    // ignored
-  }
-}
-
 export async function getSessions() {
   const res = await apiRequest("/auth/sessions", { method: "GET" });
   let list = [];
@@ -282,12 +245,7 @@ export async function getSessions() {
     list = res;
   }
 
-  const revokedLocal = getLocalRevokedSessionIds();
-  return list.filter((sess) => {
-    if (sess.revoked) return false;
-    const sessId = String(sess.sessionId || sess.id || "").trim().toLowerCase();
-    return !revokedLocal.includes(sessId);
-  });
+  return list.filter((sess) => !sess.revoked);
 }
 
 export async function deleteSession(sessionId) {

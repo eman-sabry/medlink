@@ -155,788 +155,37 @@ export function createApiMiddleware() {
     };
 
 
-    // 0. AUTHENTICATION ENDPOINTS
-    
+    // 0. AUTHENTICATION ENDPOINTS (Strictly forwarded to Real Backend)
     if (collectionRaw === "auth") {
       res.setHeader("Content-Type", "application/json; charset=utf-8");
 
-      // 1. POST /auth/login
-      if (method === "POST" && (targetId === "login" || !targetId)) {
-        readBody().then(async (body) => {
-          const identifier = (body.email || body.username || body.identifier || "").trim();
-          const identifierLower = identifier.toLowerCase();
-          const password = body.password ? String(body.password).trim() : "";
+      (async () => {
+        const body = (method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE")
+          ? await readBody()
+          : undefined;
 
-          if (!identifier || !password) {
-            res.statusCode = 400;
-            return res.end(
-              JSON.stringify({
-                success: false,
-                error: {
-                  code: "VALIDATION_ERROR",
-                  message: "يرجى إدخال اسم المستخدم أو البريد الإلكتروني وكلمة المرور",
-                  fields: {},
-                },
-                requestId: crypto.randomUUID(),
-              })
-            );
-          }
+        const authSubPath = `/${pathname}${url.search || ""}`;
+        const remoteRes = await forwardToRemote(authSubPath, method, body);
 
-          // 1. Attempt remote backend authentication
-          const remoteRes = await forwardToRemote("/auth/login", "POST", { email: identifier, password });
-          if (remoteRes && remoteRes.ok && remoteRes.data?.success) {
-            const remoteData = remoteRes.data.data || {};
-            const token = remoteData.accessToken || remoteData.token || "jwt_remote";
+        if (remoteRes && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
+        }
 
-            let detectedRole = "Owner";
-            if (identifierLower.includes("sec")) {
-              detectedRole = "Secretary";
-            } else if (identifierLower.includes("doc")) {
-              detectedRole = "Doctor";
-            }
-
-            const safeUser = {
-              id: remoteData.userId || crypto.randomUUID(),
-              username: identifier.includes("@") ? identifier.split("@")[0] : identifier,
-              email: identifier.includes("@") ? identifier : `${identifier}@seigeldeendev.com`,
-              full_name: detectedRole === "Owner" ? "مالك المركز (سيف الدين)" : (identifier.includes("@") ? identifier.split("@")[0] : identifier),
-              role: detectedRole,
-              status: "Active",
-            };
-
-            res.statusCode = 200;
-            return res.end(
-              JSON.stringify({
-                success: true,
-                data: {
-                  token,
-                  accessToken: token,
-                  tokenType: remoteData.tokenType || "Bearer",
-                  expiresIn: remoteData.expiresIn || 900,
-                  userId: remoteData.userId,
-                  sessionId: remoteData.sessionId,
-                  user: safeUser,
-                  ...safeUser,
-                },
-                meta: remoteRes.data.meta || [],
-                requestId: remoteRes.data.requestId || crypto.randomUUID(),
-              })
-            );
-          } else if (remoteRes && (remoteRes.status === 401 || remoteRes.status === 403 || remoteRes.status === 422)) {
-            const users = Array.isArray(db.users) ? db.users : [];
-            const localUser = users.find((u) => {
-              const uEmail = (u.email || "").trim().toLowerCase();
-              const uName = (u.username || "").trim().toLowerCase();
-              return uEmail === identifierLower || uName === identifierLower;
-            });
-
-            if (!localUser || String(localUser.password).trim() !== password) {
-              res.statusCode = remoteRes.status;
-              return res.end(
-                JSON.stringify(
-                  remoteRes.data || {
-                    success: false,
-                    error: {
-                      code: "INVALID_CREDENTIALS",
-                      message: "اسم المستخدم أو كلمة المرور غير صحيحة",
-                      fields: {},
-                    },
-                    requestId: crypto.randomUUID(),
-                  }
-                )
-              );
-            }
-          }
-
-          // 2. Local database fallback
-          const users = Array.isArray(db.users) ? db.users : [];
-          const user = users.find((u) => {
-            const uEmail = (u.email || "").trim().toLowerCase();
-            const uName = (u.username || "").trim().toLowerCase();
-            return uEmail === identifierLower || uName === identifierLower;
-          });
-
-          if (!user || String(user.password).trim() !== password) {
-            res.statusCode = 401;
-            return res.end(
-              JSON.stringify({
-                success: false,
-                error: {
-                  code: "INVALID_CREDENTIALS",
-                  message: "اسم المستخدم أو كلمة المرور غير صحيحة",
-                  fields: {},
-                },
-                requestId: crypto.randomUUID(),
-              })
-            );
-          }
-
-          if (user.status && user.status.toLowerCase() !== "active") {
-            res.statusCode = 403;
-            return res.end(
-              JSON.stringify({
-                success: false,
-                error: {
-                  code: "USER_INACTIVE",
-                  message: "هذا الحساب غير مفعّل، يرجى التواصل مع إدارة النظام",
-                  fields: {},
-                },
-                requestId: crypto.randomUUID(),
-              })
-            );
-          }
-
-          const safeUser = { ...user };
-          delete safeUser.password;
-
-          const token =
-            "jwt_" +
-            Buffer.from(
-              JSON.stringify({
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                created: Date.now(),
-              })
-            ).toString("base64");
-
-          res.statusCode = 200;
-          return res.end(
-            JSON.stringify({
-              success: true,
-              data: {
-                token,
-                user: safeUser,
-                ...safeUser,
-              },
-              meta: {},
-              requestId: crypto.randomUUID(),
-            })
-          );
-        });
-        return;
-      }
-
-      // 2. POST /auth/bootstrap-owner
-      if (method === "POST" && targetId === "bootstrap-owner") {
-        readBody().then(async (body) => {
-          const email = (body.email || "owner@example.test").trim();
-          const fullName = body.name || body.fullName || body.full_name || "Owner User";
-          const password = body.password || "ExamplePassword123!";
-          const centerName = body.centerName || body.center_name || "Clinic Center";
-          const bootstrapSecret = body.bootstrapSecret || process.env.BOOTSTRAP_SECRET || centerName;
-
-          const remotePayload = {
-            fullName,
-            email,
-            password,
-            bootstrapSecret,
-            name: fullName,
-            centerName,
-          };
-
-          const remoteRes = await forwardToRemote("/auth/bootstrap-owner", "POST", remotePayload);
-          if (remoteRes && remoteRes.ok && remoteRes.data) {
-            res.statusCode = remoteRes.status;
-            return res.end(JSON.stringify(remoteRes.data));
-          }
-
-          if (!Array.isArray(db.users)) db.users = [];
-          let existing = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-          if (!existing) {
-            existing = {
-              id: crypto.randomUUID(),
-              email,
-              username: email.split("@")[0],
-              full_name: fullName,
-              role: "Owner",
-              status: "Active",
-              password,
-              created_at: new Date().toISOString(),
-            };
-            db.users.unshift(existing);
-          } else {
-            existing.full_name = fullName;
-            existing.password = password;
-            existing.role = "Owner";
-            existing.status = "Active";
-          }
-
-          if (!db.settings) db.settings = {};
-          db.settings.centerName = centerName;
-          if (Array.isArray(db.branches) && db.branches.length > 0) {
-            db.branches[0].name = centerName;
-          }
-          saveDb();
-
-          const safeUser = { ...existing };
-          delete safeUser.password;
-          const token =
-            "jwt_" +
-            Buffer.from(
-              JSON.stringify({
-                id: safeUser.id,
-                email: safeUser.email,
-                role: "Owner",
-                created: Date.now(),
-              })
-            ).toString("base64");
-
-          res.statusCode = 201;
-          return res.end(
-            JSON.stringify({
-              success: true,
-              data: {
-                user: safeUser,
-                token,
-                accessToken: token,
-                centerName,
-                message: "تم تهيئة حساب المالك والمركز بنجاح",
-              },
-              requestId: crypto.randomUUID(),
-            })
-          );
-        });
-        return;
-      }
-
-      // 3. POST /auth/signup
-      if (method === "POST" && targetId === "signup") {
-        readBody().then(async (body) => {
-          const remoteRes = await forwardToRemote("/auth/signup", "POST", body);
-          if (remoteRes && remoteRes.data) {
-            res.statusCode = remoteRes.status;
-            return res.end(JSON.stringify(remoteRes.data));
-          }
-
-          const email = (body.email || "").trim();
-          const password = String(body.password || "").trim();
-          const fullName = body.fullName || body.full_name || body.name || "مستخدم جديد";
-          const role = body.role || "Doctor";
-
-          if (!email || !password) {
-            res.statusCode = 400;
-            return res.end(
-              JSON.stringify({
-                success: false,
-                error: { code: "VALIDATION_ERROR", message: "البريد الإلكتروني وكلمة المرور مطلوبان" },
-                requestId: crypto.randomUUID(),
-              })
-            );
-          }
-
-          if (!Array.isArray(db.users)) db.users = [];
-          const newUser = {
-            id: crypto.randomUUID(),
-            email,
-            username: body.username || email.split("@")[0],
-            full_name: fullName,
-            role,
-            status: "Active",
-            password,
-            created_at: new Date().toISOString(),
-          };
-          db.users.push(newUser);
-          saveDb(db);
-
-          const safeUser = { ...newUser };
-          delete safeUser.password;
-          const token = "jwt_" + Buffer.from(JSON.stringify({ id: safeUser.id, role: safeUser.role })).toString("base64");
-
-          res.statusCode = 201;
-          return res.end(
-            JSON.stringify({
-              success: true,
-              data: {
-                user: safeUser,
-                token,
-                accessToken: token,
-                message: "تم إنشاء الحساب بنجاح",
-              },
-              requestId: crypto.randomUUID(),
-            })
-          );
-        });
-        return;
-      }
-
-      // 4. GET /auth/me
-      if (method === "GET" && targetId === "me") {
-        (async () => {
-          const remoteRes = await forwardToRemote("/auth/me", "GET");
-          if (remoteRes && remoteRes.ok && remoteRes.data) {
-            res.statusCode = remoteRes.status;
-            return res.end(JSON.stringify(remoteRes.data));
-          }
-
-          const authHeader = req.headers.authorization || "";
-          let foundUser = null;
-
-          // Decode JWT if provided
-          if (authHeader.startsWith("Bearer ")) {
-            const tokenStr = authHeader.replace(/^Bearer\s+/i, "");
-            try {
-              if (tokenStr.startsWith("jwt_")) {
-                const payload = JSON.parse(Buffer.from(tokenStr.slice(4), "base64").toString("utf-8"));
-                const users = Array.isArray(db.users) ? db.users : [];
-                foundUser = users.find((u) => u.id === payload.id || u.email === payload.email);
-              } else if (tokenStr.includes(".")) {
-                // Standard JWT (header.payload.signature)
-                const payloadPart = tokenStr.split(".")[1];
-                const decoded = JSON.parse(Buffer.from(payloadPart, "base64").toString("utf-8"));
-                const userId = decoded.sub || decoded.id || decoded.userId;
-                const userEmail = decoded.email;
-                const users = Array.isArray(db.users) ? db.users : [];
-                foundUser = users.find((u) => u.id === userId || (userEmail && u.email === userEmail));
-                if (!foundUser && (userId || userEmail)) {
-                  foundUser = {
-                    id: userId || "4cbe5322-6be8-4f93-8a3a-b7ba531d6a47",
-                    email: userEmail || "owner@seigeldeendev.com",
-                    username: (userEmail || "owner").split("@")[0],
-                    full_name: "سيف الدين (مالك المركز)",
-                    role: "Owner",
-                    status: "Active",
-                  };
-                }
-              }
-            } catch (err) {
-              void err;
-            }
-          }
-
-          if (!foundUser && Array.isArray(db.users) && db.users.length > 0) {
-            foundUser = db.users[0];
-          }
-
-          if (!foundUser) {
-            foundUser = {
-              id: "4cbe5322-6be8-4f93-8a3a-b7ba531d6a47",
-              email: "owner@seigeldeendev.com",
-              username: "owner",
-              full_name: "سيف الدين (مالك المركز)",
-              role: "Owner",
-              status: "Active",
-            };
-          }
-
-          const safeUser = { ...foundUser };
-          delete safeUser.password;
-
-          const staffList = Array.isArray(db.staff) ? db.staff : [];
-          const matchedStaff = staffList.find(
-            (s) => s.id === safeUser.staff_id || s.email_normalized === safeUser.email || s.id === "422c61b1-25c0-4516-ad14-34b39bca027b"
-          );
-
-          const resolvedPhone = safeUser.phone || matchedStaff?.phone || "010907887";
-          const resolvedFullName = safeUser.full_name || matchedStaff?.full_name || "Owner User";
-          const resolvedStaffId = safeUser.staff_id || matchedStaff?.id || "422c61b1-25c0-4516-ad14-34b39bca027b";
-
-          const structuredResponse = {
-            success: true,
-            data: {
-              user: {
-                userId: safeUser.id || "4cbe5322-6be8-4f93-8a3a-b7ba531d6a47",
-                email: safeUser.email || "owner@seigeldeendev.com",
-                status: (safeUser.status || "active").toLowerCase(),
-                securityVersion: 7,
-                phone: resolvedPhone,
-                fullName: resolvedFullName,
-              },
-              staff: {
-                staffId: resolvedStaffId,
-                phone: resolvedPhone,
-                fullName: resolvedFullName,
-              },
-              clinician: {
-                clinicianId: null,
-              },
-              authorization: {
-                roles: [String(safeUser.role || "owner").toLowerCase()],
-                permissions: [
-                  "appointments.manage", "appointments.read", "archive.manage", "archive.purge", "archive.read",
-                  "archive.restore", "attachments.manage", "attachments.read", "attendance.manage", "attendance.read",
-                  "attendance.self", "audit.read", "audit.sensitive.read", "branches.manage", "branches.read",
-                  "cleanup.run", "clinical.amend", "clinical.sign", "clinicians.manage", "clinicians.read",
-                  "devices.manage", "devices.read", "expenses.manage", "expenses.read", "finance.profit.read",
-                  "financial_lookups.manage", "financial_lookups.read", "financial.summary.read",
-                  "followups.attempts.write", "followups.manage", "followups.read", "invoices.manage",
-                  "invoices.read", "maintenance.manage", "maintenance.read", "notifications.manage",
-                  "notifications.read", "packages.manage", "packages.read", "patient_packages.read",
-                  "patient_packages.reverse", "patient_packages.sell", "patients.read", "patients.write",
-                  "payments.receive", "payments.refund", "payments.void", "refunds.reverse", "reports.read",
-                  "roles.manage", "roles.read", "rooms.manage", "rooms.read", "services.manage", "services.read",
-                  "sessions.read", "sessions.write", "settings.manage", "staff.manage", "staff.read",
-                  "users.manage", "users.read"
-                ],
-                currentSessionId: "cf657823-0fea-43bd-a787-4aab7c147ac8",
-              },
-              branches: {
-                homeBranchId: "00000000-0000-0000-0000-000000000101",
-                selectedBranchId: null,
-                accessible: [
-                  {
-                    id: "00000000-0000-0000-0000-000000000101",
-                    code: "MAIN",
-                    name: "Main Branch",
-                    isHome: true,
-                  }
-                ],
-              },
-              ...safeUser,
-              phone: resolvedPhone,
-              full_name: resolvedFullName,
+        // Real backend unreachable
+        res.statusCode = 503;
+        return res.end(
+          JSON.stringify({
+            success: false,
+            error: {
+              code: "BACKEND_UNAVAILABLE",
+              message: "تعذر الاتصال بخادم المصادقة الرئيسي (Backend Unavailable)",
             },
-            meta: [],
             requestId: crypto.randomUUID(),
-          };
-
-          res.statusCode = 200;
-          return res.end(JSON.stringify(structuredResponse));
-        })();
-        return;
-      }
-
-      // 5. POST /auth/change-password
-      if (method === "POST" && targetId === "change-password") {
-        readBody().then(async (body) => {
-          const remoteRes = await forwardToRemote("/auth/change-password", "POST", body);
-          if (remoteRes && remoteRes.data) {
-            res.statusCode = remoteRes.status;
-            return res.end(JSON.stringify(remoteRes.data));
-          }
-
-          const currentPassword = body.currentPassword || body.oldPassword || "";
-          const newPassword = body.newPassword || "";
-
-          if (!currentPassword) {
-            res.statusCode = 400;
-            return res.end(
-              JSON.stringify({
-                success: false,
-                error: { code: "VALIDATION_ERROR", message: "كلمة المرور الحالية مطلوبة" },
-                requestId: crypto.randomUUID(),
-              })
-            );
-          }
-
-          if (!newPassword || newPassword.length < 6) {
-            res.statusCode = 400;
-            return res.end(
-              JSON.stringify({
-                success: false,
-                error: { code: "VALIDATION_ERROR", message: "كلمة المرور الجديدة يجب أن لا تقل عن 6 أحرف" },
-                requestId: crypto.randomUUID(),
-              })
-            );
-          }
-
-          res.statusCode = 200;
-          return res.end(
-            JSON.stringify({
-              success: true,
-              data: { message: "تم تغيير كلمة المرور بنجاح" },
-              requestId: crypto.randomUUID(),
-            })
-          );
-        });
-        return;
-      }
-
-      // 6. POST /auth/forgot-password
-      if (method === "POST" && targetId === "forgot-password") {
-        readBody().then(async (body) => {
-          const remoteRes = await forwardToRemote("/auth/forgot-password", "POST", body);
-          if (remoteRes && remoteRes.data) {
-            res.statusCode = remoteRes.status;
-            return res.end(JSON.stringify(remoteRes.data));
-          }
-
-          res.statusCode = 200;
-          return res.end(
-            JSON.stringify({
-              success: true,
-              data: { message: "تم إرسال تعليمات استعادة كلمة المرور إلى بريدك الإلكتروني بنجاح" },
-              requestId: crypto.randomUUID(),
-            })
-          );
-        });
-        return;
-      }
-
-      // 7. POST /auth/reset-password
-      if (method === "POST" && targetId === "reset-password") {
-        readBody().then(async (body) => {
-          const remoteRes = await forwardToRemote("/auth/reset-password", "POST", body);
-          if (remoteRes && remoteRes.data) {
-            res.statusCode = remoteRes.status;
-            return res.end(JSON.stringify(remoteRes.data));
-          }
-
-          res.statusCode = 200;
-          return res.end(
-            JSON.stringify({
-              success: true,
-              data: { message: "تم إعادة تعيين كلمة المرور بنجاح، يمكنك تسجيل الدخول الآن" },
-              requestId: crypto.randomUUID(),
-            })
-          );
-        });
-        return;
-      }
-
-      // 8. POST /auth/refresh
-      if (method === "POST" && targetId === "refresh") {
-        (async () => {
-          const remoteRes = await forwardToRemote("/auth/refresh", "POST", {});
-          if (remoteRes && remoteRes.ok && remoteRes.data) {
-            res.statusCode = remoteRes.status;
-            return res.end(JSON.stringify(remoteRes.data));
-          }
-
-          const token =
-            "jwt_" +
-            Buffer.from(
-              JSON.stringify({
-                refreshed: true,
-                created: Date.now(),
-              })
-            ).toString("base64");
-          res.statusCode = 200;
-          return res.end(
-            JSON.stringify({
-              success: true,
-              data: { token, accessToken: token },
-              requestId: crypto.randomUUID(),
-            })
-          );
-        })();
-        return;
-      }
-
-      // 9. POST /auth/logout
-      if (method === "POST" && targetId === "logout") {
-        readBody().then(async (body) => {
-          const payload = body && typeof body === "object" ? body : {};
-          const remoteRes = await forwardToRemote("/auth/logout", "POST", payload);
-          if (remoteRes && remoteRes.ok && remoteRes.data) {
-            res.statusCode = remoteRes.status;
-            return res.end(JSON.stringify(remoteRes.data));
-          }
-
-          res.statusCode = 200;
-          return res.end(
-            JSON.stringify({
-              success: true,
-              data: { message: "تم تسجيل الخروج بنجاح" },
-              requestId: crypto.randomUUID(),
-            })
-          );
-        });
-        return;
-      }
-
-      // 10. POST /auth/logout-all
-      if (method === "POST" && targetId === "logout-all") {
-        (async () => {
-          const remoteRes = await forwardToRemote("/auth/logout-all", "POST", {});
-          if (remoteRes && remoteRes.ok && remoteRes.data) {
-            res.statusCode = remoteRes.status;
-            return res.end(JSON.stringify(remoteRes.data));
-          }
-
-          res.statusCode = 200;
-          return res.end(
-            JSON.stringify({
-              success: true,
-              data: { message: "تم تسجيل الخروج من كافة الأجهزة بنجاح" },
-              requestId: crypto.randomUUID(),
-            })
-          );
-        })();
-        return;
-      }
-
-      // 11 & 12. /auth/invitations
-      if (targetId === "invitations") {
-        const invId = segments[2];
-        const invAction = segments[3];
-
-        // POST /auth/invitations/:id/revoke
-        if (method === "POST" && invId && invAction === "revoke") {
-          (async () => {
-            const remoteRes = await forwardToRemote(`/auth/invitations/${invId}/revoke`, "POST", {});
-            if (remoteRes && remoteRes.data) {
-              res.statusCode = remoteRes.status;
-              return res.end(JSON.stringify(remoteRes.data));
-            }
-
-            if (Array.isArray(db.invitations)) {
-              const inv = db.invitations.find((i) => i.id === invId);
-              if (inv) inv.status = "Revoked";
-              saveDb(db);
-            }
-
-            res.statusCode = 200;
-            return res.end(
-              JSON.stringify({
-                success: true,
-                data: { message: "تم إلغاء الدعوة بنجاح" },
-                requestId: crypto.randomUUID(),
-              })
-            );
-          })();
-          return;
-        }
-
-        // POST /auth/invitations
-        if (method === "POST" && !invId) {
-          readBody().then(async (body) => {
-            const remoteRes = await forwardToRemote("/auth/invitations", "POST", body);
-            if (remoteRes && remoteRes.data) {
-              res.statusCode = remoteRes.status;
-              return res.end(JSON.stringify(remoteRes.data));
-            }
-
-            if (!Array.isArray(db.invitations)) db.invitations = [];
-            const newInv = {
-              id: crypto.randomUUID(),
-              email: body.email || "",
-              role: body.role || "Doctor",
-              status: "Pending",
-              created_at: new Date().toISOString(),
-              expires_at: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
-            };
-            db.invitations.push(newInv);
-            saveDb(db);
-
-            res.statusCode = 201;
-            return res.end(
-              JSON.stringify({
-                success: true,
-                data: newInv,
-                requestId: crypto.randomUUID(),
-              })
-            );
-          });
-          return;
-        }
-
-        // GET /auth/invitations
-        if (method === "GET" && !invId) {
-          (async () => {
-            const remoteRes = await forwardToRemote("/auth/invitations", "GET");
-            if (remoteRes && remoteRes.data) {
-              res.statusCode = remoteRes.status;
-              return res.end(JSON.stringify(remoteRes.data));
-            }
-
-            res.statusCode = 200;
-            return res.end(
-              JSON.stringify({
-                success: true,
-                data: Array.isArray(db.invitations) ? db.invitations : [],
-                requestId: crypto.randomUUID(),
-              })
-            );
-          })();
-          return;
-        }
-      }
-
-      // 13 & 14. /auth/sessions
-      if (targetId === "sessions") {
-        const sessId = segments[2];
-
-        // DELETE /auth/sessions/:sessionId
-        if (method === "DELETE" && sessId) {
-          (async () => {
-            if (!Array.isArray(db.revoked_sessions)) {
-              db.revoked_sessions = [];
-            }
-            const normalizedId = String(sessId).trim().toLowerCase();
-            if (!db.revoked_sessions.includes(normalizedId)) {
-              db.revoked_sessions.push(normalizedId);
-              saveDb();
-            }
-
-            const remoteRes = await forwardToRemote(`/auth/sessions/${sessId}`, "DELETE");
-            if (remoteRes && remoteRes.ok && remoteRes.data) {
-              res.statusCode = remoteRes.status;
-              return res.end(JSON.stringify(remoteRes.data));
-            }
-
-            res.statusCode = 200;
-            return res.end(
-              JSON.stringify({
-                success: true,
-                data: { message: "تم إنهاء الجلسة بنجاح" },
-                requestId: crypto.randomUUID(),
-              })
-            );
-          })();
-          return;
-        }
-
-        // GET /auth/sessions
-        if (method === "GET" && !sessId) {
-          (async () => {
-            const revokedList = Array.isArray(db.revoked_sessions)
-              ? db.revoked_sessions.map((s) => String(s).trim().toLowerCase())
-              : [];
-            const remoteRes = await forwardToRemote("/auth/sessions", "GET");
-            if (remoteRes && remoteRes.data) {
-              const rawSessions =
-                remoteRes.data?.data?.sessions ||
-                remoteRes.data?.sessions ||
-                remoteRes.data?.data ||
-                (Array.isArray(remoteRes.data) ? remoteRes.data : []);
-              if (Array.isArray(rawSessions)) {
-                const activeSessions = rawSessions.filter((s) => {
-                  if (s.revoked) return false;
-                  const sId = String(s.sessionId || s.id || "").trim().toLowerCase();
-                  return !revokedList.includes(sId);
-                });
-                res.statusCode = remoteRes.status || 200;
-                return res.end(
-                  JSON.stringify({
-                    success: true,
-                    data: { sessions: activeSessions },
-                    requestId: crypto.randomUUID(),
-                  })
-                );
-              }
-              res.statusCode = remoteRes.status;
-              return res.end(JSON.stringify(remoteRes.data));
-            }
-
-            const currentSession = {
-              sessionId: "sess_" + crypto.randomUUID().slice(0, 8),
-              id: "sess_" + crypto.randomUUID().slice(0, 8),
-              ip: req.socket?.remoteAddress || "127.0.0.1",
-              userAgent: req.headers["user-agent"] || "Web Browser",
-              current: true,
-              isCurrent: true,
-              revoked: false,
-              compromised: false,
-              createdAt: new Date(Date.now() - 3600 * 1000).toISOString(),
-              expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
-              lastActiveAt: new Date().toISOString(),
-            };
-
-            res.statusCode = 200;
-            return res.end(
-              JSON.stringify({
-                success: true,
-                data: {
-                  sessions: [currentSession],
-                },
-                requestId: crypto.randomUUID(),
-              })
-            );
-          })();
-          return;
-        }
-      }
+          })
+        );
+      })();
+      return;
     }
 
     // Map entity_type to corresponding db collection key
@@ -1349,63 +598,84 @@ export function createApiMiddleware() {
 
     res.setHeader("Content-Type", "application/json; charset=utf-8");
 
+    const remoteSubPath = `/${collectionRaw}${targetId ? `/${targetId}` : ""}${action ? `/${action}` : ""}${url.search || ""}`;
+
     if (method === "GET") {
-      if (targetId) {
-        const item = collection.find(
-          (x) => String(x.id) === String(targetId)
-        );
-        if (!item) {
-          res.statusCode = 404;
-          return res.end(JSON.stringify({ error: "Item not found" }));
+      (async () => {
+        // 1. Prioritize Real Remote Backend
+        const remoteRes = await forwardToRemote(remoteSubPath, "GET");
+        if (remoteRes && remoteRes.ok && remoteRes.status < 400 && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
         }
-        return res.end(JSON.stringify(item));
-      }
 
-      // Filter by query parameters
-      let results = [...collection];
-      for (const [key, value] of url.searchParams.entries()) {
-        if (key.startsWith("_")) continue; // ignore _sort, _limit, etc for base filtering
-        results = results.filter((item) => {
-          if (item[key] === undefined) return false;
-          const itemVal = item[key];
-          if (typeof itemVal === "number") {
-            return Number(itemVal) === Number(value);
+        // 2. Fallback to Local DB if backend is unavailable / unbootstrapped
+        if (targetId) {
+          const item = collection.find(
+            (x) => String(x.id) === String(targetId)
+          );
+          if (!item) {
+            res.statusCode = 404;
+            return res.end(JSON.stringify({ error: "Item not found" }));
           }
-          if (typeof itemVal === "boolean") {
+          return res.end(JSON.stringify(item));
+        }
+
+        // Filter by query parameters
+        let results = [...collection];
+        for (const [key, value] of url.searchParams.entries()) {
+          if (key.startsWith("_")) continue; // ignore _sort, _limit, etc for base filtering
+          results = results.filter((item) => {
+            if (item[key] === undefined) return false;
+            const itemVal = item[key];
+            if (typeof itemVal === "number") {
+              return Number(itemVal) === Number(value);
+            }
+            if (typeof itemVal === "boolean") {
+              return String(itemVal) === String(value);
+            }
             return String(itemVal) === String(value);
-          }
-          return String(itemVal) === String(value);
-        });
-      }
+          });
+        }
 
-      // Support _sort and _order
-      const sortField = url.searchParams.get("_sort");
-      const sortOrder = url.searchParams.get("_order") || "asc";
-      if (sortField) {
-        results.sort((a, b) => {
-          const valA = a[sortField] ?? "";
-          const valB = b[sortField] ?? "";
-          if (valA < valB) return sortOrder === "desc" ? 1 : -1;
-          if (valA > valB) return sortOrder === "desc" ? -1 : 1;
-          return 0;
-        });
-      }
+        // Support _sort and _order
+        const sortField = url.searchParams.get("_sort");
+        const sortOrder = url.searchParams.get("_order") || "asc";
+        if (sortField) {
+          results.sort((a, b) => {
+            const valA = a[sortField] ?? "";
+            const valB = b[sortField] ?? "";
+            if (valA < valB) return sortOrder === "desc" ? 1 : -1;
+            if (valA > valB) return sortOrder === "desc" ? -1 : 1;
+            return 0;
+          });
+        }
 
-      // Support _limit and _page
-      const limitParam = url.searchParams.get("_limit");
-      const pageParam = url.searchParams.get("_page");
-      if (limitParam) {
-        const limit = parseInt(limitParam, 10);
-        const page = pageParam ? parseInt(pageParam, 10) : 1;
-        const start = (page - 1) * limit;
-        results = results.slice(start, start + limit);
-      }
+        // Support _limit and _page
+        const limitParam = url.searchParams.get("_limit");
+        const pageParam = url.searchParams.get("_page");
+        if (limitParam) {
+          const limit = parseInt(limitParam, 10);
+          const page = pageParam ? parseInt(pageParam, 10) : 1;
+          const start = (page - 1) * limit;
+          results = results.slice(start, start + limit);
+        }
 
-      return res.end(JSON.stringify(results));
+        return res.end(JSON.stringify(results));
+      })();
+      return;
     }
 
     if (method === "POST") {
-      readBody().then((body) => {
+      readBody().then(async (body) => {
+        // 1. Prioritize Real Remote Backend
+        const remoteRes = await forwardToRemote(remoteSubPath, "POST", body);
+        if (remoteRes && remoteRes.ok && remoteRes.status < 400 && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
+        }
+
+        // 2. Fallback to Local DB
         const newItem = {
           id: body.id || (collection.length > 0 && typeof collection[0]?.id === "number" ? Math.max(...collection.map((i) => (typeof i.id === "number" ? i.id : 0)), 0) + 1 : crypto.randomUUID()),
           ...body,
@@ -1423,7 +693,15 @@ export function createApiMiddleware() {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: "Missing ID for PUT" }));
       }
-      readBody().then((body) => {
+      readBody().then(async (body) => {
+        // 1. Prioritize Real Remote Backend
+        const remoteRes = await forwardToRemote(remoteSubPath, "PUT", body);
+        if (remoteRes && remoteRes.ok && remoteRes.status < 400 && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
+        }
+
+        // 2. Fallback to Local DB
         const index = collection.findIndex(
           (x) => String(x.id) === String(targetId)
         );
@@ -1445,7 +723,15 @@ export function createApiMiddleware() {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: "Missing ID for PATCH" }));
       }
-      readBody().then((body) => {
+      readBody().then(async (body) => {
+        // 1. Prioritize Real Remote Backend
+        const remoteRes = await forwardToRemote(remoteSubPath, "PATCH", body);
+        if (remoteRes && remoteRes.ok && remoteRes.status < 400 && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
+        }
+
+        // 2. Fallback to Local DB
         const index = collection.findIndex(
           (x) => String(x.id) === String(targetId)
         );
@@ -1465,15 +751,25 @@ export function createApiMiddleware() {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: "Missing ID for DELETE" }));
       }
-      const index = collection.findIndex(
-        (x) => String(x.id) === String(targetId)
-      );
-      if (index !== -1) {
-        collection.splice(index, 1);
-        saveDb();
-      }
-      res.statusCode = 200;
-      res.end(JSON.stringify({ success: true }));
+      (async () => {
+        // 1. Prioritize Real Remote Backend
+        const remoteRes = await forwardToRemote(remoteSubPath, "DELETE");
+        if (remoteRes && remoteRes.ok && remoteRes.status < 400 && remoteRes.data) {
+          res.statusCode = remoteRes.status;
+          return res.end(JSON.stringify(remoteRes.data));
+        }
+
+        // 2. Fallback to Local DB
+        const index = collection.findIndex(
+          (x) => String(x.id) === String(targetId)
+        );
+        if (index !== -1) {
+          collection.splice(index, 1);
+          saveDb();
+        }
+        res.statusCode = 200;
+        res.end(JSON.stringify({ success: true }));
+      })();
       return;
     }
 

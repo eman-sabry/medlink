@@ -30,8 +30,8 @@ const floatingActions = getFloatingActionsByRole(userRole);
     document.documentElement.classList.toggle("dark");
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     toast.success("تم تسجيل الخروج بنجاح");
     navigate("/login", { replace: true });
   };

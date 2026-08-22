@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import * as authService from "../auth/authService";
+import { apiRequest } from "../api/client";
 import { toast } from "../utils/toast";
 import { AuthContext } from "./authContextInstance";
 
@@ -12,6 +13,9 @@ export function AuthProvider({ children }) {
       localStorage.getItem("medlink_token") && !initialSession?.expired,
     );
   });
+
+  // Ref to hold the auto-refresh timer so logout() can cancel it from outside the effect.
+  const refreshTimeoutRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -100,23 +104,14 @@ export function AuthProvider({ children }) {
   }, [initialSession]);
 
   const login = useCallback(async (username, password) => {
+    // Clear any stale React Query cache from a previous session so the
+    // dashboard queries will fetch fresh data after navigation.
+    queryClient.removeQueries();
+
     const loggedInUser = await authService.login(username, password);
     setUser(loggedInUser);
-
-    try {
-      const serverUser = await authService.getMe();
-      if (serverUser) {
-        const combined = { ...loggedInUser, ...serverUser };
-        setUser(combined);
-        authService.saveSession(combined);
-        return combined;
-      }
-    } catch {
-      // ignore
-    }
-
     return loggedInUser;
-  }, []);
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
     if (refreshTimeoutRef.current) {
