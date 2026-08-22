@@ -105,7 +105,7 @@ export async function login(identifier, password) {
   let expiresIn = null;
 
   try {
-    const response = await apiRequest("/api/v1/auth/login", {
+    const response = await apiRequest("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email: trimmed, username: trimmed, password: cleanPassword }),
     });
@@ -136,7 +136,7 @@ export async function login(identifier, password) {
 }
 
 export async function getMe() {
-  const res = await apiRequest("/api/v1/auth/me", { method: "GET" });
+  const res = await apiRequest("/auth/me", { method: "GET" });
   if (!res) return null;
 
   const normalizedUser = parseUserData(res);
@@ -169,7 +169,7 @@ export async function bootstrapOwner(ownerData) {
     centerName: ownerData.centerName || "Clinic Center",
     bootstrapSecret: ownerData.bootstrapSecret || ownerData.centerName || "Clinic Center",
   };
-  const res = await apiRequest("/api/v1/auth/bootstrap-owner", {
+  const res = await apiRequest("/auth/bootstrap-owner", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -177,7 +177,7 @@ export async function bootstrapOwner(ownerData) {
 }
 
 export async function signup(userData) {
-  const res = await apiRequest("/api/v1/auth/signup", {
+  const res = await apiRequest("/auth/signup", {
     method: "POST",
     body: JSON.stringify(userData),
   });
@@ -185,7 +185,7 @@ export async function signup(userData) {
 }
 
 export async function changePassword(currentPassword, newPassword) {
-  const res = await apiRequest("/api/v1/auth/change-password", {
+  const res = await apiRequest("/auth/change-password", {
     method: "POST",
     body: JSON.stringify({ currentPassword, oldPassword: currentPassword, newPassword }),
   });
@@ -193,7 +193,7 @@ export async function changePassword(currentPassword, newPassword) {
 }
 
 export async function forgotPassword(email) {
-  const res = await apiRequest("/api/v1/auth/forgot-password", {
+  const res = await apiRequest("/auth/forgot-password", {
     method: "POST",
     body: JSON.stringify({ email }),
   });
@@ -201,7 +201,7 @@ export async function forgotPassword(email) {
 }
 
 export async function resetPassword(token, newPassword) {
-  const res = await apiRequest("/api/v1/auth/reset-password", {
+  const res = await apiRequest("/auth/reset-password", {
     method: "POST",
     body: JSON.stringify({ token, newPassword }),
   });
@@ -209,7 +209,7 @@ export async function resetPassword(token, newPassword) {
 }
 
 export async function refreshToken() {
-  const res = await apiRequest("/api/v1/auth/refresh", { method: "POST", body: {} });
+  const res = await apiRequest("/auth/refresh", { method: "POST", body: {} });
   const newToken = res?.data?.accessToken || res?.data?.token || res?.token;
   if (newToken) {
     localStorage.setItem(TOKEN_KEY, newToken);
@@ -219,7 +219,7 @@ export async function refreshToken() {
 
 export async function logout() {
   try {
-    await apiRequest("/api/v1/auth/logout", {
+    await apiRequest("/auth/logout", {
       method: "POST",
       body: JSON.stringify({}),
       headers: { "Content-Type": "application/json" },
@@ -233,7 +233,7 @@ export async function logout() {
 
 export async function logoutAll() {
   try {
-    await apiRequest("/api/v1/auth/logout-all", {
+    await apiRequest("/auth/logout-all", {
       method: "POST",
       body: JSON.stringify({}),
       headers: { "Content-Type": "application/json" },
@@ -270,7 +270,7 @@ export function addLocalRevokedSessionId(id) {
 }
 
 export async function getSessions() {
-  const res = await apiRequest("/api/v1/auth/sessions", { method: "GET" });
+  const res = await apiRequest("/auth/sessions", { method: "GET" });
   let list = [];
   if (res?.data?.sessions && Array.isArray(res.data.sessions)) {
     list = res.data.sessions;
@@ -295,7 +295,7 @@ export async function deleteSession(sessionId) {
     addLocalRevokedSessionId(sessionId);
   }
   try {
-    const res = await apiRequest(`/api/v1/auth/sessions/${encodeURIComponent(sessionId)}`, {
+    const res = await apiRequest(`/auth/sessions/${encodeURIComponent(sessionId)}`, {
       method: "DELETE",
     });
     return res?.data || res || { message: "تم إنهاء الجلسة بنجاح" };
@@ -308,7 +308,7 @@ export async function deleteSession(sessionId) {
 }
 
 export async function createInvitation(invitationData) {
-  const res = await apiRequest("/api/v1/auth/invitations", {
+  const res = await apiRequest("/auth/invitations", {
     method: "POST",
     body: JSON.stringify(invitationData),
   });
@@ -316,7 +316,7 @@ export async function createInvitation(invitationData) {
 }
 
 export async function revokeInvitation(invitationId) {
-  const res = await apiRequest(`/api/v1/auth/invitations/${encodeURIComponent(invitationId)}/revoke`, {
+  const res = await apiRequest(`/auth/invitations/${encodeURIComponent(invitationId)}/revoke`, {
     method: "POST",
   });
   return res?.data || res;

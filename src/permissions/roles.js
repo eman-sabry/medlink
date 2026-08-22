@@ -11,3 +11,9 @@ export const ROLE_LABELS = {
   [ROLES.SECRETARY]: "سكرتارية",
   [ROLES.DOCTOR]: "طبيب",
 };
+
+export const DASHBOARD_BY_ROLE = {
+  [ROLES.OWNER]: "/dashboard/owner",
+  [ROLES.SECRETARY]: "/dashboard/secretary",
+  [ROLES.DOCTOR]: "/dashboard/doctor",
+};

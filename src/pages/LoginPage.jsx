@@ -24,6 +24,7 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { forgotPassword } from "../auth/authService";
 import { toast } from "../utils/toast";
+import { DASHBOARD_BY_ROLE } from "../permissions/roles";
 
 const floatingIcons = [
   {
@@ -119,7 +120,7 @@ const floatingIcons = [
 ];
 
 export default function LoginPage() {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, role } = useAuth();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
@@ -133,7 +134,7 @@ export default function LoginPage() {
   const [forgotSentSuccess, setForgotSentSuccess] = useState(false);
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={DASHBOARD_BY_ROLE[role] ?? "/dashboard"} replace />;
   }
 
   const handleSubmit = async (e) => {
@@ -142,9 +143,10 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      await login(username, password);
+      const loggedInUser = await login(username, password);
       toast.success("تم تسجيل الدخول بنجاح");
-      navigate("/dashboard", { replace: true });
+      const targetDashboard = DASHBOARD_BY_ROLE[loggedInUser?.role] ?? "/dashboard";
+      navigate(targetDashboard, { replace: true });
     } catch (error) {
       toast.error(error.message || "فشل تسجيل الدخول");
     } finally {

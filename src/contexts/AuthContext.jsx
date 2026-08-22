@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import * as authService from "../auth/authService";
 import { toast } from "../utils/toast";
 import { AuthContext } from "./authContextInstance";
 
 export function AuthProvider({ children }) {
+  const refreshTimeoutRef = useRef(null);
   const [initialSession] = useState(() => authService.loadSession());
   const [user, setUser] = useState(initialSession?.user ?? null);
   const [isInitializing, setIsInitializing] = useState(() => {
@@ -36,7 +37,11 @@ export function AuthProvider({ children }) {
             setUser(freshUserAfterRefresh);
           }
         } catch {
-          // Session expired or invalid
+          // Session expired or invalid (401)
+          if (isMounted) {
+            setUser(null);
+            authService.clearSession();
+          }
         }
       } finally {
         if (isMounted) setIsInitializing(false);
@@ -49,7 +54,7 @@ export function AuthProvider({ children }) {
       syncCurrentUser();
     }
 
-    let refreshTimeout = null;
+    // Local timeout variable replaced by refreshTimeoutRef
 
     function scheduleAutoRefresh() {
       const currentToken = localStorage.getItem("medlink_token");
@@ -70,15 +75,19 @@ export function AuthProvider({ children }) {
         delayMs = 10 * 60 * 1000;
       }
 
-      if (refreshTimeout) clearTimeout(refreshTimeout);
-      refreshTimeout = setTimeout(async () => {
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = setTimeout(async () => {
         if (!isMounted) return;
         try {
           await authService.refreshToken();
+          scheduleAutoRefresh();
         } catch {
-          // background refresh fallback
+          // Dead token (401), force logout
+          if (isMounted) {
+            setUser(null);
+            authService.clearSession();
+          }
         }
-        scheduleAutoRefresh();
       }, delayMs);
     }
 
@@ -86,7 +95,7 @@ export function AuthProvider({ children }) {
 
     return () => {
       isMounted = false;
-      if (refreshTimeout) clearTimeout(refreshTimeout);
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
     };
   }, [initialSession]);
 
@@ -110,8 +119,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await authService.logout();
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = null;
+    }
     setUser(null);
+    authService.clearSession();
+    try {
+      await authService.logout();
+    } catch {
+      // ignore
+    }
   }, []);
 
   const refreshSession = useCallback(async () => {

@@ -78,7 +78,7 @@ apiClient.interceptors.response.use(
       try {
         const currentToken = localStorage.getItem("medlink_token");
         const res = await axios.post(
-          `${API_BASE_URL}/api/v1/auth/refresh`,
+          `${API_BASE_URL}/auth/refresh`,
           {},
           {
             headers: {

@@ -105,11 +105,12 @@ export function createApiMiddleware() {
     const method = req.method.toUpperCase();
 
     // Helper for remote backend proxying
-    const remoteBackendUrl = (process.env.BACKEND_URL || "https://lanwan.seifeldeendev.com").replace(/\/+$/, "");
+    const remoteBackendUrl = (process.env.BACKEND_URL || "https://lanwan.seifeldeendev.com/api/v1").replace(/\/+$/, "");
     const forwardToRemote = async (subPath, reqMethod, reqBody) => {
       if (!remoteBackendUrl) return null;
       try {
-        const fullUrl = `${remoteBackendUrl}/api/v1${subPath.startsWith("/") ? subPath : `/${subPath}`}`;
+        const fullUrl = `${remoteBackendUrl}${subPath.startsWith("/") ? subPath : `/${subPath}`}`;
+        console.log(`[PROXY] Forwarding to: ${fullUrl}`);
         const headers = {
           "Content-Type": "application/json",
           Accept: "application/json",
